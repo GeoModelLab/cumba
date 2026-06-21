@@ -2813,15 +2813,17 @@ LANGUAGE INSTRUCTION: Respond in the same language the user writes in.",
     if (!nzchar(msg)) return()
     updateTextAreaInput(session, "chatInput", value = "")
     # Detect language from the user's actual message, not the UI setting.
-    # Italian is signalled by accented chars or common Italian function words.
     ui_lang <- input$language %||% "en"
-    has_it_chars  <- grepl("[àèìòùáéíóúâêîôû]", msg, perl = TRUE)
-    has_en_words  <- grepl(
-      "\\b(the|is|are|this|how|what|why|when|will|can|should|best|season|strategy|yield|brix|irrigation|water|crop|field|tomato|deficit|does|do|which|tell|explain|give|show|compare|help|i |my |your )\\b",
+    has_it_chars <- grepl("[àèìòùáéíóúâêîôû]", msg, perl = TRUE)
+    has_en_words <- grepl(
+      "\\b(the|is|are|this|how|what|why|when|will|can|should|best|season|strategy|yield|brix|irrigation|water|crop|field|tomato|deficit|does|do|which|tell|explain|give|show|compare|help|maximise|maximize|improve|increase|reduce|decrease|achieve|optimal|advice|suggest|recommend)\\b",
       tolower(msg), perl = TRUE)
-    lang <- if (has_it_chars) ui_lang          # definitely Italian/dialect
-            else if (has_en_words) "en"         # clearly English
-            else ui_lang                         # ambiguous: follow UI setting
+    has_it_words <- grepl(
+      "\\b(come|cosa|quando|dove|perche|questo|questa|questi|quale|quali|posso|voglio|devo|bisogna|fare|avere|essere|con|per|del|della|dei|delle|nel|nella|nei|nelle|che|non|una|uno|ho|mi|si|ma|se|piu|meno|resa|irrigazione|irrigare|pomodoro|stagione|campo|acqua|strategia|deficit|varieta|raccolto|massimizzare|aumentare|ridurre|migliorare|ottimale|consiglio|suggerisci|dimmi|spiega|mostra|confronta|aiutami)\\b",
+      tolower(msg), perl = TRUE)
+    lang <- if      (has_it_chars || has_it_words) ui_lang   # Italian/dialect
+            else if (has_en_words)                 "en"       # clearly English
+            else                                   ui_lang    # ambiguous: follow UI
 
     cur <- chat_history()
 

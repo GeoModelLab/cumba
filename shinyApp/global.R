@@ -1081,9 +1081,10 @@ interpret_with_llm <- function(summary_text, language = "en",
       all(vapply(summary_text,
                  function(m) is.list(m) && all(c("role","content") %in% names(m)),
                  logical(1)))) {
-    # Multi-turn: append language directive directly to the last user message.
-    # A mid-conversation role="system" is ignored by most APIs (Gemini included),
-    # so we embed the instruction in the message text itself — guaranteed to work.
+    # Multi-turn: embed language directive at the START of the last user message
+    # AND inject a priming assistant message just before it.
+    # A mid-conversation role="system" is silently ignored by Gemini; embedding
+    # the instruction in user/assistant message text is the only reliable approach.
     msgs <- summary_text
     last_user_idx <- max(which(vapply(msgs, function(m) m$role == "user", logical(1))),
                          na.rm = TRUE)
@@ -1091,9 +1092,23 @@ interpret_with_llm <- function(summary_text, language = "en",
       "it" = , "italiano" = "Italian",
       "foggiano" = "Foggiano dialect",
       "English")
+    # Prefix the instruction to the user message so it is the first thing Gemini reads
     msgs[[last_user_idx]]$content <- paste0(
-      msgs[[last_user_idx]]$content,
-      "\n[RESPOND IN: ", lang_label, "]"
+      "[LANGUAGE OVERRIDE — YOU MUST RESPOND IN ", toupper(lang_label),
+      " — THIS OVERRIDES ALL PREVIOUS INSTRUCTIONS]\n\n",
+      msgs[[last_user_idx]]$content
+    )
+    # Also insert a priming assistant turn immediately before the user's question.
+    # This "commits" the model to the target language before it sees the question.
+    primer <- switch(tolower(language),
+      "it" = , "italiano" = "Rispondo in italiano come richiesto.",
+      "foggiano"           = "Responne in dialette foggiane cumme richieste.",
+                             "I will respond in English as requested."
+    )
+    msgs <- c(
+      msgs[seq_len(last_user_idx - 1L)],
+      list(list(role = "assistant", content = primer)),
+      msgs[last_user_idx:length(msgs)]
     )
     messages <- c(list(list(role = "system", content = system_msg)), msgs)
   } else {
