@@ -939,12 +939,18 @@ reverse_geocode_nominatim <- function(lat, lon, lang = "it",
 
 # Build the LLM system prompt (agronomic decision support for processing tomato).
 .llm_system_prompt <- function(language = "en") {
-  lang_directive <- switch(
+  default_lang_label <- switch(
     tolower(language),
-    "italiano" = ,
-    "it"       = "LINGUA: Rispondi SEMPRE e SOLO in italiano semplice e diretto, da agronomo che parla con un agricoltore. Non usare l'inglese in nessun caso.",
-    "foggiano" = "LINGUA: Rispondi SEMPRE e SOLO in dialetto foggiano (Puglia, Italia meridionale). Caloroso, diretto, preciso. Non usare l'inglese.",
-    "LANGUAGE: Always reply in English only. Be precise and concise."
+    "italiano" = , "it" = "Italian",
+    "foggiano" = "Foggiano dialect (Puglia, Italy)",
+    "English"
+  )
+  lang_directive <- paste0(
+    "CRITICAL LANGUAGE RULE: Look at the language of the user's LAST message in the conversation. ",
+    "Respond in THAT EXACT language — English if they write in English, Italian if they write in Italian, ",
+    "Foggiano dialect if they write in Foggiano. ",
+    "Do NOT be influenced by the language of any earlier message, including the technical data context. ",
+    "Default to ", default_lang_label, " only when the user's message language is genuinely ambiguous (e.g. a single word or number)."
   )
 
   paste(
@@ -1035,17 +1041,11 @@ reverse_geocode_nominatim <- function(lat, lon, lang = "it",
     "data is insufficient. (6) Reference only numbers provided — never invent values.",
 
     # RESPONSE FORMAT
-    "RESPONSE FORMAT (follow exactly): 4-6 sentences, no bullet points, no",
-    "AI disclaimers, no preamble. Cover: (1) one-sentence summary of key CUMBA",
-    "predictions; (2) agronomic interpretation vs historical baseline; (3) ONE",
-    "concrete management action for the coming days; (4) explicit yield/Brix/water",
-    "trade-off. Scientifically rigorous but accessible to an informed farmer.",
-    "In FOLLOW-UP conversations: answer the question directly (2-4 sentences),",
-    "stay anchored to the numbers, suggest a next step if relevant.",
-    "LANGUAGE OVERRIDE FOR FOLLOW-UPS: In a conversation with multiple messages,",
-    "ALWAYS detect the language of the user's LAST message and respond in THAT",
-    "language, overriding the LINGUA/LANGUAGE directive above. If the user writes",
-    "in English, respond in English. If in Italian, respond in Italian.",
+    "RESPONSE FORMAT (follow exactly): MAXIMUM 3 sentences total. No bullet points,",
+    "no AI disclaimers, no preamble, no intro phrases like 'Based on CUMBA' or",
+    "'Great question'. Jump straight to the answer. For the initial summary cover:",
+    "(1) key number (yield/Brix); (2) ONE recommended action; (3) main trade-off.",
+    "For FOLLOW-UP questions: 2 sentences maximum. Be blunt and direct.",
     "REMINDER: Never truncate a response mid-sentence. Always complete the thought."
   )
 }
@@ -1081,7 +1081,21 @@ interpret_with_llm <- function(summary_text, language = "en",
       all(vapply(summary_text,
                  function(m) is.list(m) && all(c("role","content") %in% names(m)),
                  logical(1)))) {
-    messages <- c(list(list(role = "system", content = system_msg)), summary_text)
+    # Multi-turn: append language directive directly to the last user message.
+    # A mid-conversation role="system" is ignored by most APIs (Gemini included),
+    # so we embed the instruction in the message text itself — guaranteed to work.
+    msgs <- summary_text
+    last_user_idx <- max(which(vapply(msgs, function(m) m$role == "user", logical(1))),
+                         na.rm = TRUE)
+    lang_label <- switch(tolower(language),
+      "it" = , "italiano" = "Italian",
+      "foggiano" = "Foggiano dialect",
+      "English")
+    msgs[[last_user_idx]]$content <- paste0(
+      msgs[[last_user_idx]]$content,
+      "\n[RESPOND IN: ", lang_label, "]"
+    )
+    messages <- c(list(list(role = "system", content = system_msg)), msgs)
   } else {
     messages <- list(list(role = "system", content = system_msg),
                      list(role = "user",   content = as.character(summary_text)))

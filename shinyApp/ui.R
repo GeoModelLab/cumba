@@ -1407,13 +1407,15 @@ phase_card <- function(prefix, header_label, header_class,
   # Round 10: turno = numericInput con bottoni +/- (incrementi interi).
   # Soglia stress = slider (continuo 0.5..1).
   div(class = "phase-card",
-    div(class = paste("phase-card-header", header_class), HTML(header_label)),
+    div(id = paste0("phase-hdr-", prefix),
+        class = paste("phase-card-header", header_class), HTML(header_label)),
     div(class = "phase-card-body",
         sl("", paste0("ws_", prefix), ws_label,
            min = 0.5, max = 1.0, value = max(ws_default, 0.5), step = 0.05),
         # Turno: numericInput con +/- nativi del browser
         div(class = "turn-input-row",
-            tags$label(turn_label, class = "turn-input-label"),
+            tags$label(turn_label, class = "turn-input-label",
+                       id = paste0("turn-lbl-", prefix)),
             numericInput(paste0("turn_", prefix), label = NULL,
                          value = min(turn_default, turn_max),
                          min = 1, max = turn_max, step = 1,
@@ -1519,7 +1521,7 @@ fluidPage(
   tags$head(
     tags$style(HTML(app_css)),
     tags$script(HTML(app_js)),
-    tags$script(src = "translation.js?v=39"),
+    tags$script(src = "translation.js?v=41"),
     tags$meta(name = "viewport",
               content = "width=device-width, initial-scale=1")
   ),
@@ -1670,21 +1672,21 @@ fluidPage(
         div(class = "plot-and-schedule plot-and-schedule-inverted",
             div(class = "irr-feedback irr-feedback-side",
                 div(class = "irrf-title", id = "irrFeedbackTitle",
-                    HTML("💧 Le tue scelte di irrigazione")),
+                    HTML("💧 Your irrigation schedule")),
                 div(class = "freeze-toggle-row",
                     checkboxInput("freezeMode",
-                                  HTML("🔒 Solo le mie scelte (no consigli automatici)"),
+                                  HTML("🔒 <span id='freezeLabel'>Only my choices (no auto suggestions)</span>"),
                                   value = FALSE)),
                 actionButton("recalcWithRules",
-                             HTML("🔄 Ricalcola con le regole della strategia"),
+                             HTML("<span id='recalcLabel'>🔄 Recalculate with strategy rules</span>"),
                              class = "btn btn-default btn-sm btn-recalc-rules",
                              width = "100%"),
-                # Help block: istruzioni collassabili (bilingue)
+                # Help block: collapsible instructions
                 tags$details(class = "irrf-help-details",
-                  tags$summary(HTML("ℹ️ How to use / Come funziona")),
+                  tags$summary(id = "irrHelpSummary", HTML("ℹ️ How to use")),
                   tags$div(class = "irrf-help-body",
-                    tags$p(HTML("<strong>EN:</strong> Add irrigation events (date + mm). The model re-runs automatically. Use <em>Freeze</em> to lock your choices and compare impact without automatic refills. Save/load your schedule as CSV.")),
-                    tags$p(HTML("<strong>IT:</strong> Aggiungi eventi di irrigazione (data + mm). Il modello si aggiorna automaticamente. Usa <em>Freeze</em> per bloccare le tue scelte e vedere l'impatto puro senza rifill automatici. Salva/carica il calendario come CSV."))
+                    tags$p(id = "irrHelpText",
+                           HTML("Add irrigation events (date + mm). The model re-runs automatically. Use <em>Freeze</em> to lock your choices and compare impact without automatic refills. Save/load your schedule as CSV."))
                   )
                 ),
                 div(class = "add-row add-row-top",
@@ -1725,11 +1727,11 @@ fluidPage(
 
       # ============== STRATEGY SIDEBAR (mode = strategy) ================
       div(class = "strategy-side",
-          h4(class = "strategy-side-title", "💧 Strategia irrigua"),
+          h4(id = "strategy-side-title", class = "strategy-side-title", "💧 Strategia irrigua"),
 
           # Variety selector
           div(class = "strategy-variety-block",
-              tags$label("🌱 Varietà / Variety", class = "strategy-variety-label"),
+              tags$label("🌱 Varietà", id = "strategy-variety-label", class = "strategy-variety-label"),
               selectInput("variety", label = NULL,
                           choices = c("(personalizzato / custom)" = "custom",
                                       .variety_choices()),

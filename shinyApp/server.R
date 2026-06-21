@@ -2377,14 +2377,23 @@ function(input, output, session) {
     today <- Sys.Date()
     ovr   <- irr_overrides()
 
-    # Round 18: italianizza date
+    # Round 18: date formatting — language-aware
+    sched_lang <- input$language %||% "en"
+    sched_it   <- sched_lang %in% c("it", "foggiano")
     mesi_it <- c("Gen","Feb","Mar","Apr","Mag","Giu",
                  "Lug","Ago","Set","Ott","Nov","Dic")
-    gg_it <- c("Dom","Lun","Mar","Mer","Gio","Ven","Sab")
-    fmt_it <- function(d) sprintf("%s %d %s",
-                                  gg_it[as.POSIXlt(d)$wday + 1L],
-                                  as.integer(format(d, "%d")),
-                                  mesi_it[as.integer(format(d, "%m"))])
+    gg_it   <- c("Dom","Lun","Mar","Mer","Gio","Ven","Sab")
+    mesi_en <- c("Jan","Feb","Mar","Apr","May","Jun",
+                 "Jul","Aug","Sep","Oct","Nov","Dec")
+    gg_en   <- c("Sun","Mon","Tue","Wed","Thu","Fri","Sat")
+    fmt_it <- function(d) {
+      if (sched_it)
+        sprintf("%s %d %s", gg_it[as.POSIXlt(d)$wday + 1L],
+                as.integer(format(d, "%d")), mesi_it[as.integer(format(d, "%m"))])
+      else
+        sprintf("%s %d %s", gg_en[as.POSIXlt(d)$wday + 1L],
+                as.integer(format(d, "%d")), mesi_en[as.integer(format(d, "%m"))])
+    }
 
     # Round 18: assemblo lista UNICA di eventi (consigliate + applicate +
     # skip "fantasma") ORDINATA cronologicamente, cosi' l'agricoltore vede
@@ -2458,13 +2467,16 @@ function(input, output, session) {
       btn <- switch(type,
         "suggested"  = tags$button(class = "irrf-act btn-skip",
                                    `data-act` = "skip",
-                                   `data-date` = key, "✕ salto"),
+                                   `data-date` = key,
+                                   if (sched_it) "✕ salto" else "✕ skip"),
         "skipped"    = tags$button(class = "irrf-act btn-undo",
                                    `data-act` = "undo-skip",
-                                   `data-date` = key, "↩ ripristina"),
+                                   `data-date` = key,
+                                   if (sched_it) "↩ ripristina" else "↩ restore"),
         "ghost_skip" = tags$button(class = "irrf-act btn-undo",
                                    `data-act` = "undo-skip",
-                                   `data-date` = key, "↩ annulla"),
+                                   `data-date` = key,
+                                   if (sched_it) "↩ annulla" else "↩ undo"),
         "applied"    = tags$button(class = "irrf-act btn-remove",
                                    `data-act` = "remove-applied",
                                    `data-date` = key, "🗑")
@@ -2477,7 +2489,8 @@ function(input, output, session) {
 
     if (!length(rows)) {
       rows <- list(div(class = "irrf-row empty",
-                       em("Nessuna irrigazione in questa stagione.")))
+                       em(if (sched_it) "Nessuna irrigazione in questa stagione."
+                          else "No irrigation events this season.")))
     }
 
     do.call(tagList, rows)
@@ -2503,10 +2516,10 @@ function(input, output, session) {
       cnt <- tapply(h$irrigation > 0, h$year, sum, na.rm = TRUE)
       pct_today <- ftsw_percentile_today(cur, h, today)
       pct_line <- if (is.finite(pct_today))
-        sprintf("- Acqua nel suolo oggi vs storico stesso DOY: percentile %.0f%% (0=piu' secco di tutti, 100=piu' umido).\n",
+        sprintf("- Soil water today vs historical same DOY: percentile %.0f%% (0=driest ever, 100=wettest).\n",
                 pct_today * 100) else ""
       hist_summary <- paste0(sprintf(
-        "- Storico (%d anni): yield mediano %.1f t/ha (P10=%.1f, P90=%.1f); brix %.2f; irrig. mediana %.0f mm in %.0f interventi.\n",
+        "- Historical baseline (%d years): median yield %.1f t/ha (P10=%.1f, P90=%.1f); brix %.2f; median irrigation %.0f mm in %.0f events.\n",
         length(unique(h$year)),
         median(hist_y, na.rm = TRUE),
         quantile(hist_y, .10, na.rm = TRUE),
@@ -2543,19 +2556,22 @@ Compito: 4-5 frasi su cosa aspettarsi alla luce dello storico e della strategia.
     irr_mm <- sum(cur$irrigation, na.rm = TRUE)
     n_fc   <- sum(cur$is_forecast, na.rm = TRUE)
 
-    # FTSW e azione di oggi
-    info <- today_info()
-    today_line <- sprintf("- AZIONE OGGI consigliata dal modello: %s. %s\n",
-                          info$headline, info$detail)
+    # FTSW e azione di oggi — always EN for hidden LLM context
+    info_en <- today_action(cur, weather_data(),
+                            transplantingDOY  = transplantingDOY(),
+                            depletionFraction = input$DepletionFraction,
+                            lang              = "en")
+    today_line <- sprintf("- TODAY's recommended action: %s. %s\n",
+                          info_en$headline, info_en$detail)
     fc_line <- if (n_fc > 0L) sprintf(
-      "- Ultimi %d giorni del run sono FORECAST (Open-Meteo +16d).\n",
+      "- Last %d days of run are FORECAST (Open-Meteo +16d).\n",
       n_fc) else ""
 
     # Riassunto meteo prossimi 3 gg
     om_now <- weather_data()
     w3_line <- ""
     if (!is.null(om_now)) w3_line <- sprintf("- Weather 3d: %s\n",
-                                             weather_3day_summary(om_now, lang = input$language %||% "en"))
+                                             weather_3day_summary(om_now, lang = "en"))
 
     # Feedback agricoltore: irrigazioni saltate / aggiunte (override)
     fb_line <- ""
@@ -2573,7 +2589,7 @@ Compito: 4-5 frasi su cosa aspettarsi alla luce dello storico e della strategia.
                                        function(x) as.numeric(x$mm %||% 0),
                                        numeric(1)), na.rm = TRUE) else 0
       fb_line <- sprintf(
-        "- FEEDBACK AGRICOLTORE: %d consigli SALTATI, %d irrigazioni aggiunte (%.0f mm tot).\n",
+        "- FARMER FEEDBACK: %d recommended events SKIPPED, %d irrigations added (%.0f mm total).\n",
         sk_n, ap_n, ap_mm)
     }
 
@@ -2589,7 +2605,7 @@ Compito: 4-5 frasi su cosa aspettarsi alla luce dello storico e della strategia.
       yq <- yq[is.finite(yq)]
       if (length(yq) >= 2L)
         ens_line <- sprintf(
-          "- Ensemble (analoghi storici N=%d): yield previsto P10/P50/P90 = %.1f / %.1f / %.1f t/ha.\n",
+          "- Ensemble (historical analogues N=%d): projected yield P10/P50/P90 = %.1f / %.1f / %.1f t/ha.\n",
           length(yq),
           quantile(yq, .10, na.rm = TRUE),
           quantile(yq, .50, na.rm = TRUE),
@@ -2597,15 +2613,15 @@ Compito: 4-5 frasi su cosa aspettarsi alla luce dello storico e della strategia.
     }
 
     sprintf(
-      "Risultati CUMBA — pomodoro da industria, stagione %d, data %s.
-- Sito: %.3f deg N, %.3f deg E
-- Trapianto: DOY %d   Ciclo: %d gradi-giorno
-- Strategia irrigua: veg WS=%.2f/turn=%dd, repr WS=%.2f/turn=%dd, ripen WS=%.2f/turn=%dd
-- Run a oggi: yield previsto %.1f t/ha, brix %.2f deg, %d interventi per %.0f mm tot, WS min %.2f
+      "CUMBA results — processing tomato, season %d, date %s.
+- Site: %.3f deg N, %.3f deg E
+- Transplanting: DOY %d   Cycle: %d degree-days
+- Irrigation strategy: veg WS=%.2f/turn=%dd, repr WS=%.2f/turn=%dd, ripen WS=%.2f/turn=%dd
+- Current run: projected yield %.1f t/ha, brix %.2f deg, %d events for %.0f mm total, min WS %.2f
 %s%s%s%s%s%s
-Compito: 4-5 frasi corte. Cosa fare nei prossimi giorni? Come va vs storico?
-Una sola modifica concreta agli slider se serve. Se l'agricoltore ha
-saltato/aggiunto irrigazioni, commenta brevemente la sua scelta.",
+Task: 4-5 short sentences. What to do in the next few days? How does it compare to historical baseline?
+One concrete slider change if needed. If the farmer has skipped/added irrigations, briefly comment on the choice.
+LANGUAGE INSTRUCTION: Respond in the same language the user writes in.",
       cur_yr, format(today, "%d %B %Y"),
       pt_lat, pt_lon,
       transplantingDOY(), as.integer(input$CycleLength),
@@ -2633,7 +2649,7 @@ saltato/aggiunto irrigazioni, commenta brevemente la sua scelta.",
     withProgress(message = "🤖 CUMBA is thinking...", value = 0.4, {
       txt <- tryCatch(
         interpret_with_claude(summary_text,
-                              language    = input$language %||% "en",
+                              language    = "en",  # auto-summary always EN; user drives lang via chat
                               runtime_key = input$user_llm_key %||% NULL),
         error = function(e) {
           message("[run_llm] interpret_with_claude ERROR: ", conditionMessage(e))
@@ -2796,7 +2812,16 @@ saltato/aggiunto irrigazioni, commenta brevemente la sua scelta.",
     msg <- trimws(isolate(input$chatInput) %||% "")
     if (!nzchar(msg)) return()
     updateTextAreaInput(session, "chatInput", value = "")
-    lang <- input$language %||% "en"
+    # Detect language from the user's actual message, not the UI setting.
+    # Italian is signalled by accented chars or common Italian function words.
+    ui_lang <- input$language %||% "en"
+    has_it_chars  <- grepl("[àèìòùáéíóúâêîôû]", msg, perl = TRUE)
+    has_en_words  <- grepl(
+      "\\b(the|is|are|this|how|what|why|when|will|can|should|best|season|strategy|yield|brix|irrigation|water|crop|field|tomato|deficit|does|do|which|tell|explain|give|show|compare|help|i |my |your )\\b",
+      tolower(msg), perl = TRUE)
+    lang <- if (has_it_chars) ui_lang          # definitely Italian/dialect
+            else if (has_en_words) "en"         # clearly English
+            else ui_lang                         # ambiguous: follow UI setting
 
     cur <- chat_history()
 

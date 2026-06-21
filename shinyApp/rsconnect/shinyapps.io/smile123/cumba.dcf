@@ -5,6 +5,6 @@ account: smile123
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17231275
-bundleId: 12157161
+bundleId: 12157366
 url: https://smile123.shinyapps.io/cumba/
 version: 1

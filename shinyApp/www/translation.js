@@ -25,6 +25,13 @@ window.cumbaSwitchLang = function(lang) {
   // 2. Toolbar button labels
   var T = {
     fg: {
+      strategyTitle:  '💧 Strategje irrigue',
+      phaseVeg:       '🌱 Vegetativa',
+      phaseRep:       '🌸 Riproduttiva',
+      phaseRip:       '🍅 Maturazzione',
+      wsLabel:        'Soglie stress (0=asciutte, 1=ott.)',
+      turnLabel:      'Turne minime (juorne)',
+      varietyLabel:   '🌱 Varietà',
       toggleMap:      '🗺 Cambie site',
       toggleStrategy: '⚙ Strategje irrigue',
       openAdvanced:   '🔧 Avanzate',
@@ -48,6 +55,13 @@ window.cumbaSwitchLang = function(lang) {
       advGrowth: 'Crescite', advPheno: 'Fenologije e chiome', advWater: 'Acque e terrène', advFruit: 'Qualità du frutto'
     },
     en: {
+      strategyTitle:  '💧 Irrigation strategy',
+      phaseVeg:       '🌱 Vegetative',
+      phaseRep:       '🌸 Reproductive',
+      phaseRip:       '🍅 Ripening',
+      wsLabel:        'Stress threshold (0=dry, 1=opt.)',
+      turnLabel:      'Min. interval (days)',
+      varietyLabel:   '🌱 Variety',
       toggleMap:      '🗺 Change site',
       toggleStrategy: '⚙ Irrigation strategy',
       openAdvanced:   '🔧 Advanced',
@@ -71,6 +85,13 @@ window.cumbaSwitchLang = function(lang) {
       advGrowth: 'Growth', advPheno: 'Phenology & canopy', advWater: 'Water & soil', advFruit: 'Fruit quality'
     },
     it: {
+      strategyTitle:  '💧 Strategia irrigua',
+      phaseVeg:       '🌱 Vegetativa',
+      phaseRep:       '🌸 Riproduttiva',
+      phaseRip:       '🍅 Maturazione',
+      wsLabel:        'Soglia stress (0=secco, 1=opt.)',
+      turnLabel:      'Turno minimo (giorni)',
+      varietyLabel:   '🌱 Varietà',
       toggleMap:      '🗺 Cambia sito',
       toggleStrategy: '⚙ Strategia irrigua',
       openAdvanced:   '🔧 Avanzate',
@@ -186,6 +207,53 @@ window.cumbaSwitchLang = function(lang) {
   if (learnBtn) learnBtn.innerHTML = (isIT || isFG) ? '&#9654; Esegui' : '&#9654; Run';
   var learnParamLbl = document.querySelector('label[for=learningParam]');
   if (learnParamLbl) learnParamLbl.textContent = (isIT || isFG) ? 'Parametro' : 'Parameter';
+
+  // 10. Schedule panel
+  var irrTitle = document.getElementById('irrFeedbackTitle');
+  if (irrTitle) irrTitle.innerHTML = isIT || isFG
+    ? '💧 Le tue scelte di irrigazione'
+    : '💧 Your irrigation schedule';
+
+  var freezeLbl = document.getElementById('freezeLabel');
+  if (freezeLbl) freezeLbl.textContent = isIT || isFG
+    ? 'Solo le mie scelte (no consigli automatici)'
+    : 'Only my choices (no auto suggestions)';
+
+  var recalcLbl = document.getElementById('recalcLabel');
+  if (recalcLbl) recalcLbl.innerHTML = isIT || isFG
+    ? '🔄 Ricalcola con le regole della strategia'
+    : '🔄 Recalculate with strategy rules';
+
+  var irrHelp = document.getElementById('irrHelpSummary');
+  if (irrHelp) irrHelp.innerHTML = isIT || isFG ? 'ℹ️ Come funziona' : 'ℹ️ How to use';
+
+  var irrHelpTxt = document.getElementById('irrHelpText');
+  if (irrHelpTxt) irrHelpTxt.innerHTML = isIT || isFG
+    ? 'Aggiungi eventi di irrigazione (data + mm). Il modello si aggiorna automaticamente. Usa <em>Freeze</em> per bloccare le tue scelte e vedere l\'impatto puro senza rifill automatici. Salva/carica il calendario come CSV.'
+    : 'Add irrigation events (date + mm). The model re-runs automatically. Use <em>Freeze</em> to lock your choices and compare impact without automatic refills. Save/load your schedule as CSV.';
+
+  // 11. Strategy sidebar
+  var stratTitle = document.getElementById('strategy-side-title');
+  if (stratTitle) stratTitle.textContent = t.strategyTitle;
+
+  var phaseMap = { 'phase-hdr-veg': 'phaseVeg', 'phase-hdr-rep': 'phaseRep', 'phase-hdr-rip': 'phaseRip' };
+  Object.keys(phaseMap).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = t[phaseMap[id]];
+  });
+
+  ['ws_veg','ws_rep','ws_rip'].forEach(function(id) {
+    var lbl = document.querySelector('label[for=' + id + ']');
+    if (lbl) lbl.textContent = t.wsLabel;
+  });
+
+  ['turn-lbl-veg','turn-lbl-rep','turn-lbl-rip'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = t.turnLabel;
+  });
+
+  var varLbl = document.getElementById('strategy-variety-label');
+  if (varLbl) varLbl.textContent = t.varietyLabel;
 };
 
 // Server-driven handlers (for server-side language changes)
