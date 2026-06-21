@@ -65,7 +65,8 @@ if ("cumba" %in% rownames(installed.packages())) {
   try(remove.packages("cumba"), silent = TRUE)
 }
 # Reinstalla SEMPRE da GitHub (force = TRUE per essere sicuri)
-remotes::install_github("tomatoModelling/cumba_R_package",
+remotes::install_github("GeoModelLab/cumba",
+                        ref     = "claude/beautiful-mendel-dtpdbu",
                         upgrade = "never", force = TRUE, quiet = FALSE)
 
 # Verifica metadati GitHub: deve avere RemoteType=github + RemoteUsername
