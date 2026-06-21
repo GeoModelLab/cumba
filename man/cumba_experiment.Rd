@@ -10,6 +10,7 @@ cumba_experiment(
   estimateRad = T,
   estimateET0 = T,
   irrigation_df,
+  irrigationEfficiency = 0.9,
   fullOut = F
 )
 }
@@ -50,6 +51,14 @@ evapotranspiration (ET0) is estimated from temperature (Hargreaves). If
 \item{irrigation_df}{A \code{data.frame} with the irrigation schedule for each
 experiment/site, containing columns \code{ID}, \code{Site}, \code{YEAR},
 \code{DATE}, \code{WVOL}.}
+
+\item{irrigationEfficiency}{Numeric (0–1). Fraction of the observed applied
+water (\code{WVOL}) that effectively reaches the root zone. Default
+\code{0.9} (90\%, typical for drip irrigation). The \code{irrigation}
+column in the output retains the original gross \code{WVOL} values; only
+the soil water balance uses the net fraction
+(\code{WVOL * irrigationEfficiency}). Set to \code{1} to disable the
+correction.}
 
 \item{fullOut}{Logical. If \code{FALSE} (default) returns key outputs; if
 \code{TRUE} returns all internal variables.}

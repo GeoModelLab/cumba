@@ -5,4 +5,9 @@ inst/doc
 # Secret / credenziali — non committare MAI
 shinyApp/openrouter_key.txt
 openrouter_key.txt
+shinyApp/llm_key.txt
+llm_key.txt
+shinyApp/gemini_key.txt
+gemini_key.txt
 .Renviron
+manuscript

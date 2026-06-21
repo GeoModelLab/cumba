@@ -1,31 +1,31 @@
-﻿parameter,description,unit,value,min,max
-Tbase,Base temperature for growth and development,°C,10,6,13
-Topt,Optimum temperature for growth and development,°C,25,22,28
-Tmax,Maximum temperature for growth and development,°C,35,30.5,35
-Theat,Temperature corresponding to maximum heat stress,°C,40,35.5,45
-Tcold,Temperature corresponding to maximum cold stress,°C,5,2,6
-FIntMax,Maximum fraction of light interception,unitless,0.9,0.7,1
-CycleLength,Tomato cycle length,degree days,1330,1200,1600
-TransplantingLag,Percentage of crop cycle when transplanting shock ends,%,10,5,15
-FloweringLag,Percentage of crop cycle when flowering occurs,%,30,20,50
-HalfIntGrowth,Percentage of crop cycle when light interception is 50% in the growth phase,unitless,20,10,40
-HalfIntSenescence,Percentage of crop cycle when light interception is 50% in the senescence phase,unitless,95,70,95
-InitialInt,Inital light interception,unitless,0.05,0.05,0.15
-RUE,Maximum radiation use efficiency,g MJ-1,2.3,2,3.5
-KcIni,Initial crop coefficient for transpiration,unitless,0.1,0.1,0.2
-KcMax,Maximum crop coefficient for transpiration,unitless,1.2,0.9,1.5
-RootIncrease,Daily maximum root increase rate,cm,1,0.5,1.5
-RootDepthMax,Maximum root depth,cm,60,50,100
-RootDepthInitial,Initial root depth,cm,6,2,6
-SoilWaterInitial,Initial soil water content (100 = field capacity 0 = wilting point),% AWC,75,50,100
-FieldCapacity,Field Capacity,%,0.3,0.2,0.45
-WiltingPoint,Wilting Point,%,0.1,0.05,0.15
-DepletionFraction,Average percentage of total available soil water that can be depleted from the root zone before moisture stress (reduction in ET) occurs,% AWC,30,30,60
-WaterStressSensitivity,Sensitivity to water stress (hybrid specific),unitless,4,10,6
-FloweringSlope,Slope of the flowering curve,unitless,0.4,0.25,0.5
-FloweringMax,Percentage of the crop cycle when flowering is maximum,unitless,50,40,60
-k0,initial rate of sugar consumption for synthesis of other compounds,unitless,4,3,6
-FruitWaterContentMin,Minimum fruit water content,%,0.6,0.8,0.85
-FruitWaterContentMax,Maximum fruit water content,%,0.95,0.88,0.98
-FruitWaterContentInc,Slope of the fruit water content function,unitless,0.1,0.05,0.15
-FruitWaterContentDecreaseMax,Maximum fruit water content decrease due to drought stress,%,0.015,0.01,0.02
+﻿parameter,description,unit,value,min,max,
+CycleLength,Tomato cycle length,degree days,1110,900,1200,1
+DepletionFraction,Average percentage of total available soil water that can be depleted from the root zone before moisture stress (reduction in ET) occurs,% AWC,78,50,80,1
+FieldCapacity,Field Capacity,%,0.3,0.2,0.45,1
+FIntMax,Maximum fraction of light interception,unitless,0.9,0.7,1,1
+FloweringLag,Percentage of crop cycle when flowering occurs,%,28,20,50,1
+FloweringMax,Percentage of the crop cycle when flowering is maximum,unitless,58,40,65,1
+FloweringSlope,Slope of the flowering curve,unitless,0.45,0.25,0.5,1
+FruitWaterContentDecreaseMax,Maximum fruit water content decrease due to drought stress,%,0.002,0.0015,0.004,1
+FruitWaterContentInc,Slope of the fruit water content function,unitless,0.16,0.1,0.2,1
+FruitWaterContentMax,Maximum fruit water content,%,0.92,0.9,0.95,1
+FruitWaterContentMin,Minimum fruit water content,%,0.8,0.75,0.85,1
+HalfIntGrowth,Percentage of crop cycle when light interception is 50% in the growth phase,unitless,15,10,40,1
+HalfIntSenescence,Percentage of crop cycle when light interception is 50% in the senescence phase,unitless,100,90,110,1
+InitialInt,Inital light interception,unitless,0.002,0.0001,0.01,1
+k0,initial rate of sugar consumption for synthesis of other compounds,unitless,4,3,5,1
+KcIni,Initial crop coefficient for transpiration,unitless,0.05,0.05,0.3,1
+KcMax,Maximum crop coefficient for transpiration,unitless,1.2,1,1.3,1
+RootDepthInitial,Initial root depth,cm,6,2,8,1
+RootDepthMax,Maximum root depth,cm,100,80,100,1
+RootIncrease,Daily maximum root increase rate,cm,0.3,0.3,0.8,1
+RUE,Maximum radiation use efficiency,g MJ-1,3,2.5,3.5,1
+SoilWaterInitial,Initial soil water content (100 = field capacity 0 = wilting point),% AWC,100,50,100,1
+Tbase,Base temperature for growth and development,°C,10,6,13,1
+Tcold,Temperature corresponding to maximum cold stress,°C,5,2,6,1
+Theat,Temperature corresponding to maximum heat stress,°C,41,38,45,1
+Tmax,Maximum temperature for growth and development,°C,33,30,35,1
+Topt,Optimum temperature for growth and development,°C,24,22,26,1
+TransplantingLag,Percentage of crop cycle when transplanting shock ends,%,6,5,15,1
+WaterStressSensitivity,Sensitivity to water stress (hybrid specific),unitless,4.5,2,8,1
+WiltingPoint,Wilting Point,%,0.1,0.05,0.15,1

@@ -6,8 +6,37 @@
 > ⚡ **TL;DR — primo deploy in 4 mosse**
 > 1. Account su shinyapps.io → Tokens → copia name+token+secret
 > 2. Metti name+token+secret in `~/.Renviron` come `SHINYAPPS_NAME/TOKEN/SECRET`
-> 3. (Opzionale, per LLM) `writeLines("sk-or-...", "shinyApp/openrouter_key.txt")`
+> 3. **(Consigliato per LLM)** Chiave Groq gratuita da <https://console.groq.com> →
+>    `writeLines("gsk_...", "shinyApp/llm_key.txt")` (già in `.gitignore`)
 > 4. `source("deploy/deploy_to_shinyapps.R")` → aspetta 5–10 min
+
+### 1.2. LLM API key (per il chatbot agronomico)
+
+**Opzione A — Groq (raccomandata, gratuita, chiave non auto-revocata):**
+1. Vai su <https://console.groq.com> → Sign up (gratuito, no carta di credito).
+2. Menu → API Keys → Create API Key → copia la chiave (`gsk_...`).
+3. Da R/RStudio:
+   ```r
+   writeLines("gsk_LA_TUA_CHIAVE", "shinyApp/llm_key.txt")
+   ```
+   Il file è già in `.gitignore` — non finisce mai nel repo GitHub.
+4. Re-deploya: `source("deploy/deploy_to_shinyapps.R")`.
+
+Perché Groq? Le chiavi OpenRouter venivano a volte revocate automaticamente quando
+rilevate in bundle pubblici. Groq non ha questo problema ed è più veloce.
+
+**Opzione B — OpenRouter (legacy):**
+```r
+writeLines("sk-or-...", "shinyApp/openrouter_key.txt")
+```
+
+**Opzione C — runtime (per demo):**
+L'utente può inserire la propria chiave direttamente nell'interfaccia chat (campo
+"LLM key" sotto la scelta lingua). Funziona per tutti i provider. Non viene
+salvata sul server.
+
+**Nessuna chiave:** l'app funziona comunque in modalità RULES (sistema rule-based
+agronomico ad alta qualità). Il badge "RULES" sostituisce "LLM" nell'header.
 
 ---
 

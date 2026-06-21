@@ -1,0 +1,5 @@
+# These files are excluded from git (root .gitignore handles that).
+# They are intentionally NOT excluded here so rsconnect bundles them
+# for shinyapps.io deployment (free tier has no env var settings).
+# gemini_key.txt, llm_key.txt — bundled with app, NOT committed to git.
+.Renviron

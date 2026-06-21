@@ -1,6 +1,7 @@
 # data-raw/make_cumbaParameters.R
-excel_file<-"..//data-raw/Dataset Carucci et al. new.xlsx"
-sheet_names <- excel_sheets("..//data-raw/Dataset Carucci et al. new.xlsx")
+library(readxl)
+excel_file<-"data-raw/Dataset_Carucci_et_al.xlsx"
+sheet_names <- readxl::excel_sheets("data-raw/Dataset_Carucci_et_al.xlsx")
 all_sheets <- lapply(sheet_names, function(sheet) read_excel(excel_file, sheet = sheet))
 
 # Extract relevant data frames

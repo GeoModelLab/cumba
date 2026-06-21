@@ -1,5 +1,2 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-auxiliaryFiles*
-testFiles*
-shinyApp*

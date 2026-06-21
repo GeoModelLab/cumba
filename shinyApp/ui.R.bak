@@ -105,15 +105,9 @@ app_css <- "
   }
   body[data-cumba-mode='pick'] .right-col { display: none; }
   body[data-cumba-mode='pick'] .map-pane {
-    width: 100%; height: 100vh; position: relative;
-    border-radius: 0; overflow: hidden;
-    box-shadow: none;
-  }
-  body[data-cumba-mode='pick'] .app-shell {
-    padding: 0 !important; gap: 0 !important;
-  }
-  body[data-cumba-mode='pick'] {
-    overflow: hidden;
+    width: 100%; height: 78vh; position: relative;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   }
   /* mostra solo in pick */
   body[data-cumba-mode='focus']    .pick-only,
@@ -186,7 +180,7 @@ app_css <- "
     padding: 4px 0;
   }
   .turn-input-row .turn-input-label {
-    font-size: 12px; color: #263238; font-weight: 700; flex: 1;
+    font-size: 11px; color: #455a64; font-weight: 600; flex: 1;
     margin: 0; line-height: 1.2;
   }
   .turn-input-row .form-group { margin: 0; }
@@ -543,16 +537,6 @@ app_css <- "
   .focus-toolbar .btn-learning-trigger:hover {
     background: #bbdefb !important; color: #002171 !important;
   }
-  /* Advanced button — muted/secondary style (expert only) */
-  .focus-toolbar .btn-advanced-secondary {
-    background: transparent !important; color: #90a4ae !important;
-    border: 1px solid #cfd8dc !important;
-    border-radius: 14px !important; padding: 4px 10px !important;
-    font-size: 13px !important; opacity: 0.8;
-  }
-  .focus-toolbar .btn-advanced-secondary:hover {
-    background: #f5f5f5 !important; color: #546e7a !important; opacity: 1;
-  }
   /* Language flag buttons — hero (first page) */
   .hero-lang {
     margin-top: 14px; display: flex; gap: 8px; justify-content: center;
@@ -643,10 +627,6 @@ app_css <- "
     padding-bottom: 8px; margin-bottom: 10px;
   }
   #llmModal .llm-modal-head .llm-icon { font-size: 26px; }
-  #llmModal .llm-modal-head .llm-icon img.cumba-avatar {
-    width: 42px; height: 42px; object-fit: contain;
-    filter: drop-shadow(0 1px 3px rgba(0,0,0,.18));
-  }
   #llmModal .llm-modal-head .llm-title {
     font-size: 17px; font-weight: 800; color: #6d4c41; flex: 1;
   }
@@ -663,7 +643,7 @@ app_css <- "
   }
   /* M11: chat multi-turn. Bubble user (rosa) e assistant (giallo crema). */
   #llmModal .chat-body {
-    flex: 1 1 auto; overflow-y: auto; padding-right: 4px; min-height: 0;
+    flex: 1 1 auto; overflow-y: auto; padding-right: 4px;
     background: #fafafa; border-radius: 8px; padding: 10px;
     margin-bottom: 8px;
   }
@@ -860,22 +840,10 @@ app_css <- "
   .phase-card-header.rip { background: linear-gradient(135deg, #fb8c00, #ef6c00); }
   .phase-card-body { padding: 4px 6px 6px 6px; }
   .phase-card-body .slider-container .control-label {
-    font-size: 11px; color: #444; font-weight: 600;
+    font-size: 9px; color: #777;
   }
   .phase-card-body .irs--shiny .irs-bar { background-color: #00838f; }
   .phase-card-body .irs--shiny .irs-handle { border-color: #006064; }
-
-  /* Variety block in strategy sidebar */
-  .strategy-variety-block {
-    background: #f3f5f7; border-radius: 8px;
-    padding: 6px 8px 8px 8px; margin-bottom: 8px;
-    border: 1px solid #d8dde3;
-  }
-  .strategy-variety-label {
-    font-size: 11px; font-weight: 700; color: #2e7d32;
-    text-transform: uppercase; letter-spacing: 0.4px;
-    display: block; margin-bottom: 3px;
-  }
 
   .strategy-title {
     font-size: 11px; font-weight: 700; color: #00838f;
@@ -1331,13 +1299,6 @@ app_js <- "
       var ma = document.getElementById('advancedModal');
       if (ma) ma.classList.add('open');
       window.dispatchEvent(new Event('resize'));
-      // Re-bind sliders that may not have initialised in the hidden container
-      setTimeout(function() {
-        if (ma) {
-          try { Shiny.unbindAll(ma); } catch(e) {}
-          Shiny.bindAll(ma);
-        }
-      }, 150);
       return;
     }
     if (ev.target.closest('#advancedModalCloseBtn') ||
@@ -1350,18 +1311,12 @@ app_js <- "
       var ml = document.getElementById('learningModal');
       if (ml) ml.classList.add('open');
       window.dispatchEvent(new Event('resize'));
-      // Re-bind Shiny inputs: ionRangeSlider can't initialise in display:none,
-      // so learningValue may be NULL until we force a re-bind after the modal
-      // is visible.
+      // Refresh ionRangeSlider after container becomes visible
       setTimeout(function() {
-        if (ml) {
-          try { Shiny.unbindAll(ml); } catch(e) {}
-          Shiny.bindAll(ml);
-        }
         var $sl = $('#learningValue');
         if ($sl.length && $sl.data('ionRangeSlider'))
           $sl.data('ionRangeSlider').update({});
-      }, 150);
+      }, 50);
       return;
     }
     if (ev.target.closest('#learningModalCloseBtn') ||
@@ -1393,9 +1348,146 @@ app_js <- "
     if (on) b.classList.add('has-message');
     else    b.classList.remove('has-message');
   });
-  // Language flag buttons — handler in translation_js (separate string to stay under 10k limit)
-"
+  // Language flag buttons: toggle .btn-lang-active and translate UI text
+  Shiny.addCustomMessageHandler('cumba_lang_active', function(payload){
+    var lang = payload.lang || 'en';
+    var isIT = (lang === 'it' || lang === 'foggiano');
 
+    // 1. Active state on flag buttons (hero + toolbar)
+    ['langBtnEN','langBtnIT','heroLangEN','heroLangIT'].forEach(function(id){
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      var isITbtn = (id === 'langBtnIT' || id === 'heroLangIT');
+      if (isITbtn === isIT) {
+        btn.classList.add('btn-lang-active');
+      } else {
+        btn.classList.remove('btn-lang-active');
+      }
+    });
+
+    // 2. Translate toolbar button labels and modal controls
+    var T = {
+      en: {
+        toggleMap:      '🗺 Change site',
+        toggleStrategy: '⚙ Irrigation strategy',
+        openAdvanced:   '🔧 Advanced',
+        openLearning:   '📚 Learning',
+        openLLM:        '🤖 CUMBA explains',
+        changeSite:     '↺ Change field',
+        toggleSchedule: '📋 Schedule',
+        geolocBtn:      '📍 Use my location',
+        chatResetBtn:   '🔄 New conversation',
+        chatSendBtn:    '📤 Send',
+        autoLLMLabel:   'Auto-update summary',
+        llmKeyLabel:    '🔑 LLM key (optional)',
+        chatPlaceholder:'Ask CUMBA: \\'what if I wait 3 days?\\', \\'why is Brix dropping?\\'...'
+      },
+      it: {
+        toggleMap:      '🗺 Cambia sito',
+        toggleStrategy: '⚙ Strategia irrigua',
+        openAdvanced:   '🔧 Avanzate',
+        openLearning:   '📚 Apprendimento',
+        openLLM:        '🤖 CUMBA spiega',
+        changeSite:     '↺ Cambia campo',
+        toggleSchedule: '📋 Programma',
+        geolocBtn:      '📍 Usa la mia posizione',
+        chatResetBtn:   '🔄 Nuova conversazione',
+        chatSendBtn:    '📤 Invia',
+        autoLLMLabel:   'Aggiornamento automatico',
+        llmKeyLabel:    '🔑 Chiave LLM (opzionale)',
+        chatPlaceholder:'Chiedi a CUMBA: \\'e se aspetto 3 giorni?\\', \\'perch\\u00e9 cala il Brix?\\'...'
+      }
+    };
+    var t = T[isIT ? 'it' : 'en'];
+
+    // Buttons with innerHTML (contain emoji)
+    ['toggleMap','toggleStrategy','openAdvanced','openLearning','openLLM',
+     'changeSite','toggleSchedule','chatResetBtn','chatSendBtn','geolocBtn'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el && t[id]) el.innerHTML = t[id];
+    });
+
+    // Hero text elements (translated by ID)
+    var heroT = {
+      en: {
+        'hero-headline': 'Hi, I\\'m CUMBA',
+        'hero-sub': 'Your agronomic advisor for processing tomato. I\\'ll tell you when to irrigate, how your field is doing, and what to expect compared to past seasons.',
+        'hero-cta': 'Tell me where your field is:',
+        'hero-or':  'or',
+        'hero-hint': '&#128071; click a point on the map'
+      },
+      it: {
+        'hero-headline': 'Ciao, sono CUMBA',
+        'hero-sub': 'Il tuo assistente agronomico per il pomodoro da industria. Ti dir\\u00f2 quando irrigare, come sta il tuo campo, e cosa aspettarti rispetto alle stagioni passate.',
+        'hero-cta': 'Dimmi dove si trova il tuo campo:',
+        'hero-or':  'oppure',
+        'hero-hint': '&#128071; clicca un punto sulla mappa'
+      }
+    };
+    var ht = heroT[isIT ? 'it' : 'en'];
+    Object.keys(ht).forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.textContent = ht[id];
+    });
+    // hero-hint keeps its emoji — use innerHTML for that one
+    var hintEl = document.getElementById('hero-hint');
+    if (hintEl) hintEl.innerHTML = ht['hero-hint'];
+
+    // Checkbox label for autoLLM
+    var cbLabel = document.querySelector('label[for=autoLLM]');
+    if (cbLabel) cbLabel.textContent = t.autoLLMLabel;
+
+    // LLM key <details><summary>
+    var llmSummary = document.querySelector('.llm-modal-controls details summary');
+    if (llmSummary) llmSummary.textContent = t.llmKeyLabel;
+
+    // Chat textarea placeholder
+    var ta = document.getElementById('chatInput');
+    if (ta) ta.placeholder = t.chatPlaceholder;
+  });
+  // M11 (fixed): send chat by reading DOM value directly to avoid Shiny debounce lag.
+  // Both Enter key and button click call this function.
+  window._cumbaSendChat = function() {
+    var ta = document.getElementById('chatInput');
+    if (!ta) return;
+    var val = ta.value.trim();
+    if (!val) return;
+    ta.value = '';
+    ta.dispatchEvent(new Event('input'));   // sync empty value to Shiny binding
+    Shiny.setInputValue('chatSend', {msg: val, ts: Date.now()}, {priority: 'event'});
+  };
+  document.addEventListener('keydown', function(ev){
+    if (ev.target && ev.target.id === 'chatInput' &&
+        ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      window._cumbaSendChat();
+    }
+  });
+  // Wire button click — handle both pre- and post-DOMContentLoaded execution
+  (function wireSendBtn(){
+    var btn = document.getElementById('chatSendBtn');
+    if (btn) { btn.addEventListener('click', window._cumbaSendChat); return; }
+    document.addEventListener('DOMContentLoaded', function(){
+      var b = document.getElementById('chatSendBtn');
+      if (b) b.addEventListener('click', window._cumbaSendChat);
+    });
+  })();
+  // M11: scroll automatico al fondo quando arriva un nuovo messaggio
+  document.addEventListener('DOMContentLoaded', function(){
+    var body = document.querySelector('#llmModal .chat-body');
+    if (!body) return;
+    var obs = new MutationObserver(function(){
+      body.scrollTop = body.scrollHeight;
+    });
+    obs.observe(body, {childList: true, subtree: true});
+  });
+  // freezeMode: hide recalcWithRules when 'My choices only' is ON
+  Shiny.addCustomMessageHandler('cumba_freeze_mode', function(payload){
+    var btn = document.getElementById('recalcWithRules');
+    if (!btn) return;
+    btn.style.display = payload.on ? 'none' : '';
+  });
+"
 
 sl <- function(class_, ...) div(class = paste('slider-container', class_),
                                 sliderInput(...))
@@ -1446,7 +1538,7 @@ quickPanel <- tabPanel(
 # ---- Advanced tab — 3-4 sliders per row --------------------------------
 advancedPanel <- tabPanel(
   "Advanced",
-  h4(id="advGrowth", "Growth", class = "section-header growth-parameters"),
+  h4("Growth", class = "section-header growth-parameters"),
   fluidRow(
     column(6, sl("growth-slider", "TGro",   "T card. (°C)",  min = 6,  max = 36, value = c(10, 35))),
     column(6, sl("growth-slider", "Topt",   "T opt (°C)",    min = 22, max = 26, value = 24))
@@ -1456,7 +1548,7 @@ advancedPanel <- tabPanel(
     column(6, sl("growth-slider", "RUE",    "RUE (g/MJ)",    min = 1,  max = 3,  value = 2.8, step = 0.1))
   ),
 
-  h4(id="advPheno", "Phenology & canopy", class = "section-header phenology-parameters"),
+  h4("Phenology & canopy", class = "section-header phenology-parameters"),
   fluidRow(
     column(6, sl("phenology-slider", "CycleLength", "Cycle (°C·d)",
                  min = 1000, max = 1400, value = 1216, step = 10)),
@@ -1476,7 +1568,7 @@ advancedPanel <- tabPanel(
                  min = 40, max = 90, value = 41))
   ),
 
-  h4(id="advWater", "Water & soil", class = "section-header stress-parameters"),
+  h4("Water & soil", class = "section-header stress-parameters"),
   fluidRow(
     column(6, sl("stress-slider", "Kc",                     "Kc",
                  min = 0.2, max = 1.2, value = c(0.3, 1.15), step = 0.05)),
@@ -1496,7 +1588,7 @@ advancedPanel <- tabPanel(
                  min = 30,   max = 100, value = 100, step = 5))
   ),
 
-  h4(id="advFruit", "Fruit quality", class = "section-header brix-parameters"),
+  h4("Fruit quality", class = "section-header brix-parameters"),
   fluidRow(
     column(6, sl("brix-slider", "k0",                            "k0 sugar",
                  min = 2,      max = 5,     value = 4, step = 0.1)),
@@ -1507,7 +1599,7 @@ advancedPanel <- tabPanel(
     column(6, sl("brix-slider", "FruitWaterContentInc",          "Water inc.",
                  min = 0.05,  max = 0.2, value = 0.14,  step = 0.001)),
     column(6, sl("brix-slider", "FruitWaterContentDecreaseMax",  "Water dec. max",
-                 min = 0.0001, max = 0.001, value = 0.0002, step = 0.0001))
+                 min = 0.001, max = 0.0003, value = 0.0002, step = 0.0005))
   )
 )
 
@@ -1519,9 +1611,8 @@ fluidPage(
   tags$head(
     tags$style(HTML(app_css)),
     tags$script(HTML(app_js)),
-    tags$script(src = "translation.js?v=39"),
     tags$meta(name = "viewport",
-              content = "width=device-width, initial-scale=1")
+              content = "width=device-width, initial-scale=1, maximum-scale=1")
   ),
 
     div(class = "app-shell",
@@ -1532,11 +1623,7 @@ fluidPage(
         # PICK MODE: hero overlay — static HTML, translated via JS in
         # cumba_lang_active. IDs on text elements allow innerHTML swap.
         div(class = "hero-overlay pick-only",
-            div(class = "hero-emoji",
-                tags$img(src = "cumba_avatar.png",
-                         style = "width:90px;height:90px;object-fit:contain;",
-                         alt = "CUMBA",
-                         onerror = "this.replaceWith(document.createTextNode('\U0001F345'))")),
+            div(class = "hero-emoji", "🍅"),
             div(class = "hero-headline", id = "hero-headline", "Hi, I'm CUMBA"),
             div(class = "hero-sub", id = "hero-sub",
                 "Your agronomic advisor for processing tomato. ",
@@ -1555,18 +1642,11 @@ fluidPage(
                 actionButton("heroLangEN",
                              HTML("EN"),
                              class = "btn btn-lang btn-lang-hero btn-lang-active",
-                             title = "Switch to English",
-                             onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('en'); Shiny.setInputValue('language','en',{priority:'event'})"),
+                             title = "Switch to English"),
                 actionButton("heroLangIT",
                              HTML("IT"),
                              class = "btn btn-lang btn-lang-hero",
-                             title = "Passa all'italiano",
-                             onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('it'); Shiny.setInputValue('language','it',{priority:'event'})"),
-                actionButton("heroLangFG",
-                             HTML("FG"),
-                             class = "btn btn-lang btn-lang-hero btn-lang-fg",
-                             title = "Dialette Foggiane",
-                             onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('foggiano'); Shiny.setInputValue('language','foggiano',{priority:'event'})")
+                             title = "Passa all'italiano")
             )
         ),
 
@@ -1601,21 +1681,18 @@ fluidPage(
                          HTML("⚙ Irrigation strategy"),
                          class = "btn btn-toggle btn-strategy-hero",
                          title = "Open the irrigation phase panel (vegetative, reproductive, ripening)"),
+            actionButton("openAdvanced",
+                         HTML("🔧 Advanced"),
+                         class = "btn btn-toggle",
+                         title = "Open the model parameter panel (RUE, Kc, phenology, ...)"),
             actionButton("openLearning",
                          HTML("📚 Learning"),
                          class = "btn btn-toggle btn-learning-trigger",
                          title = "Change one parameter at a time and see how the model responds"),
             actionButton("openLLM",
-                         HTML('<img src="cumba_avatar.png" class="cumba-avatar" alt="CUMBA"
-                                style="width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:4px;"
-                                onerror="this.replaceWith(document.createTextNode(\'🤖\'))"> CUMBA'),
+                         HTML("🤖 CUMBA explains"),
                          class = "btn btn-toggle btn-llm-trigger",
                          title = "Open the AI agronomic chatbot"),
-            # Advanced last — less prominent (model params, expert only)
-            actionButton("openAdvanced",
-                         HTML("🔧"),
-                         class = "btn btn-toggle btn-advanced-secondary",
-                         title = "Model parameters (RUE, Kc, phenology...)"),
             # Schedule / irrigation choices toggle (focus <-> work mode)
             tags$span(class = "ft-lang-sep"),
             tags$button(id = "toggleSchedule",
@@ -1627,18 +1704,11 @@ fluidPage(
             actionButton("langBtnEN",
                          HTML("EN"),
                          class = "btn btn-toggle btn-lang btn-lang-en btn-lang-active",
-                         title = "Switch to English",
-                         onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('en'); Shiny.setInputValue('language','en',{priority:'event'})"),
+                         title = "Switch to English"),
             actionButton("langBtnIT",
                          HTML("IT"),
                          class = "btn btn-toggle btn-lang btn-lang-it",
-                         title = "Passa all'italiano",
-                         onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('it'); Shiny.setInputValue('language','it',{priority:'event'})"),
-            actionButton("langBtnFG",
-                         HTML("FG"),
-                         class = "btn btn-toggle btn-lang btn-lang-fg",
-                         title = "Dialètte Foggiane",
-                         onclick = "if(window.cumbaSwitchLang)cumbaSwitchLang('foggiano'); Shiny.setInputValue('language','foggiano',{priority:'event'})")
+                         title = "Passa all'italiano")
         ),
 
         # *** HEADER: SITO + STAGIONE (molto visibile, in alto) ***
@@ -1654,218 +1724,4 @@ fluidPage(
                 uiOutput("today_card"),
                 type = 6, color = "#2e7d32", proxy.height = "90px"
               ),
-              # Round 16: 4 KPI fenologici subito sotto la today card
-              uiOutput("pheno_kpis")
-            ),
-            div(class = "forecast-side",
-              uiOutput("forecast_strip"))
-        ),
-
-        uiOutput("kpi_box"),
-
-        # Round 14: banner override RIMOSSO (era confondente).
-
-        # Round 13: layout INVERTITO -> schedule (pannello CONTROLLO) A
-        # SINISTRA, grafico (pannello IMPATTO) A DESTRA.
-        div(class = "plot-and-schedule plot-and-schedule-inverted",
-            div(class = "irr-feedback irr-feedback-side",
-                div(class = "irrf-title", id = "irrFeedbackTitle",
-                    HTML("💧 Le tue scelte di irrigazione")),
-                div(class = "freeze-toggle-row",
-                    checkboxInput("freezeMode",
-                                  HTML("🔒 Solo le mie scelte (no consigli automatici)"),
-                                  value = FALSE)),
-                actionButton("recalcWithRules",
-                             HTML("🔄 Ricalcola con le regole della strategia"),
-                             class = "btn btn-default btn-sm btn-recalc-rules",
-                             width = "100%"),
-                # Help block: istruzioni collassabili (bilingue)
-                tags$details(class = "irrf-help-details",
-                  tags$summary(HTML("ℹ️ How to use / Come funziona")),
-                  tags$div(class = "irrf-help-body",
-                    tags$p(HTML("<strong>EN:</strong> Add irrigation events (date + mm). The model re-runs automatically. Use <em>Freeze</em> to lock your choices and compare impact without automatic refills. Save/load your schedule as CSV.")),
-                    tags$p(HTML("<strong>IT:</strong> Aggiungi eventi di irrigazione (data + mm). Il modello si aggiorna automaticamente. Usa <em>Freeze</em> per bloccare le tue scelte e vedere l'impatto puro senza rifill automatici. Salva/carica il calendario come CSV."))
-                  )
-                ),
-                div(class = "add-row add-row-top",
-                    div(class = "add-row-fields",
-                        dateInput("irr_apply_date", NULL,
-                                  value = Sys.Date(), weekstart = 1L,
-                                  width = "100%"),
-                        numericInput("irr_apply_mm", NULL,
-                                     value = 10, min = 1, max = 100, step = 1,
-                                     width = "100%")),
-                    actionButton("irr_apply_btn",
-                                 "+ Aggiungi",
-                                 class = "btn-primary btn-sm btn-add-irr")),
-                tags$details(class = "irrf-storage-details",
-                  tags$summary(HTML("📁 Salva / Carica / Reset")),
-                  div(class = "irrf-toolbar",
-                      downloadButton("irr_export",
-                                     "💾 Salva CSV",
-                                     class = "btn btn-default btn-xs"),
-                      fileInput("irr_import", NULL,
-                                buttonLabel = "📂 Carica CSV",
-                                accept = c(".csv", "text/csv"),
-                                placeholder = "",
-                                width = "100%"),
-                      actionButton("irr_clear_overrides",
-                                   "🧹 Reset",
-                                   class = "btn btn-default btn-xs"))
-                ),
-                uiOutput("irrigation_feedback_rows")
-            ),
-            div(class = "plot-wrap plot-side",
-                uiOutput("mainPlot_wrap")),
-            div(class = "mini-charts-side",
-                plotlyOutput("mini_yield_brix", height = "640px"))
-        ),
-        NULL
-      ),
-
-      # ============== STRATEGY SIDEBAR (mode = strategy) ================
-      div(class = "strategy-side",
-          h4(class = "strategy-side-title", "💧 Strategia irrigua"),
-
-          # Variety selector
-          div(class = "strategy-variety-block",
-              tags$label("🌱 Varietà / Variety", class = "strategy-variety-label"),
-              selectInput("variety", label = NULL,
-                          choices = c("(personalizzato / custom)" = "custom",
-                                      .variety_choices()),
-                          selected = "custom",
-                          width = "100%"),
-              uiOutput("variety_desc_ui")
-          ),
-
-          phase_card("veg",  "🌱 Vegetativa",   "veg",
-                     "Soglia stress (0=secco, 1=opt.)", 0.9,
-                     "Turno minimo (giorni)",            2),
-          phase_card("rep",  "🌸 Riproduttiva", "rep",
-                     "Soglia stress (0=secco, 1=opt.)", 0.9,
-                     "Turno minimo (giorni)",            2),
-          phase_card("rip",  "🍅 Maturazione",  "rip",
-                     "Soglia stress (0=secco, 1=opt.)", 0.9,
-                     "Turno minimo (giorni)",            2),
-          NULL
-      )
-    ),
-
-    # MODAL "CUMBA ti spiega"
-    div(id = "llmModal",
-        div(class = "llm-modal-card",
-            div(class = "llm-modal-head",
-                span(class = "llm-icon",
-                     tags$img(src = "cumba_avatar.png",
-                              class = "cumba-avatar",
-                              alt = "CUMBA",
-                              onerror = "this.replaceWith(document.createTextNode('🤖'))")),
-                span(class = "llm-title",
-                     span(id = "llm-title-text", "CUMBA explains"),
-                     uiOutput("llm_pill", inline = TRUE)),
-                tags$button(class = "llm-modal-close",
-                            type = "button",
-                            id = "llmModalCloseBtn",
-                            HTML("✕"))),
-            div(class = "llm-modal-body",
-                # Chat thread — rendered server-side from chat_history
-                div(class = "chat-body",
-                    shinycssloaders::withSpinner(
-                      uiOutput("interpretation_text"),
-                      type = 8, color = "#6d4c41", proxy.height = "60px"
-                    )
-                ),
-                uiOutput("llm_status"),
-                # Chat input row
-                div(class = "chat-input-row",
-                    textAreaInput("chatInput", NULL,
-                                  placeholder = "Chiedi a CUMBA...",
-                                  rows = 2,
-                                  width = "100%"),
-                    actionButton("chatSendBtn",
-                                 HTML("🍅"),
-                                 class = "btn btn-primary btn-sm btn-chat-send"))
-            ),
-            div(class = "llm-modal-controls",
-                actionButton("chatResetBtn",
-                             HTML("🔄"),
-                             class = "btn btn-default btn-xs",
-                             title = "Nuova conversazione / New conversation"),
-                checkboxInput("autoLLM", "Auto", value = TRUE),
-                actionButton("interpretBtn",
-                             "↻",
-                             title = "Riprova / Retry",
-                             class = "btn-primary btn-sm")
-)
-        )
-    ),
-
-    # MODAL "Avanzate"
-    div(id = "advancedModal", class = "cumba-modal",
-        div(class = "llm-modal-card adv-modal-card",
-            div(class = "llm-modal-head",
-                span(class = "llm-icon", "🔧"),
-                span(class = "llm-title", "Parametri di modello"),
-                tags$button(class = "llm-modal-close",
-                            type = "button",
-                            id = "advancedModalCloseBtn",
-                            HTML("✕"))),
-            div(class = "llm-modal-body",
-                tabsetPanel(
-                  id = "param_tabs", type = "tabs",
-                  quickPanel,
-                  advancedPanel
-                ),
-                tags$hr(),
-                actionButton("forceRun", "↻ ricalcola",
-                             icon = icon("rotate"),
-                             class = "btn-success btn-sm",
-                             width = "100%")
-            )
-        )
-    ),
-
-    # ============== LEARNING MODAL ==========================================
-    div(id = "learningModal", class = "cumba-modal",
-        div(class = "llm-modal-card learning-modal-card",
-            div(class = "llm-modal-head",
-                span(class = "llm-icon", "\U0001F4DA"),
-                span(class = "llm-title", "Learning mode"),
-                tags$button(class = "llm-modal-close",
-                            type = "button",
-                            id = "learningModalCloseBtn",
-                            HTML("✕"))),
-            div(class = "learning-body",
-                div(id = "learning-intro-text", class = "learning-intro",
-                    HTML(paste0(
-                      "<strong>Learning mode</strong>: change one model parameter, ",
-                      "re-run the simulation, and see how yield, Brix and irrigation change. ",
-                      "CUMBA explains why."))),
-                div(class = "learning-controls",
-                    selectInput("learningParam",
-                                label = "Parameter",
-                                choices = c(
-                                  "RUE", "CycleLength", "FloweringLag",
-                                  "FIntMax", "WaterStressSensitivity",
-                                  "RootIncrease", "RootDepthMax",
-                                  "FruitWaterContentMin", "FruitWaterContentMax",
-                                  "k0", "DepletionFraction"),
-                                width = "100%"),
-                    uiOutput("learningSliderUI"),
-                    div(class = "learning-buttons",
-                        actionButton("learningRecalc",
-                                     HTML("&#9654; Run"),
-                                     class = "btn btn-success btn-sm"),
-                        actionButton("learningReset",
-                                     HTML("↻ Reset"),
-                                     class = "btn btn-default btn-sm"))),
-                div(class = "learning-results",
-                    uiOutput("learningKpiBox")),
-                div(class = "learning-comment-wrap",
-                    style = "margin-top:10px; font-size:13px;",
-                    uiOutput("learningComment"))
-            )
-        )
-    )
-
-)
+              # Round 16: 4 KPI fenologici subito sotto la today ca

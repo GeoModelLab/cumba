@@ -170,6 +170,8 @@ rsconnect::deployApp(
 
 cat("\nFINE. Vai su https://", acc_name, ".shinyapps.io/cumba/ per provare.\n",
     sep = "")
-cat("PROMEMORIA: imposta OPENROUTER_API_KEY nelle Environment Variables\n",
+cat("PROMEMORIA: per attivare il LLM per tutti gli utenti senza chiave,\n",
+    "imposta CUMBA_APP_KEY=<tua_chiave> nelle Environment Variables\n",
     "su https://www.shinyapps.io/admin/#/applications (Settings dell'app).\n",
+    "Prefisso auto-rilevato: gsk_...=Groq  sk-ant-...=Anthropic  sk-or-...=OpenRouter\n",
     sep = "")

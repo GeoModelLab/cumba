@@ -60,32 +60,34 @@ function(input, output, session) {
                                    active = active_ids))
   }
 
-  # ===== Language management ================================================
-  # input$language is driven purely via Shiny.setInputValue from the browser
-  # (onclick on 6 lang buttons, shiny:connected handler, cumba_set_lang message).
-  # There is NO selectInput — it was removed to fix browser-cached "foggiano".
+  # ===== Language toolbar buttons (IT / EN flags) =========================
+  # The flag buttons in the focus-toolbar mirror input$language (the master
+  # selectInput inside the LLM modal). Clicking a flag updates the select
+  # and toggles the active CSS class.
   .update_lang_buttons <- function(lang) {
     session$sendCustomMessage("cumba_lang_active",
                               list(lang = lang %||% "en"))
   }
-  # Language is set exclusively via Shiny.setInputValue from onclick attributes
-  # on the 6 lang buttons (heroLangEN/IT/FG + langBtnEN/IT/FG) and from the
-  # shiny:connected / cumba_set_lang JS handlers. There is NO selectInput for
-  # language — the hidden selectize was removed because the browser cached
-  # "foggiano" and re-asserted it after our setTimeout override.
+  observeEvent(input$langBtnEN, {
+    updateSelectInput(session, "language", selected = "en")
+    .update_lang_buttons("en")
+  }, ignoreInit = TRUE)
+  observeEvent(input$langBtnIT, {
+    updateSelectInput(session, "language", selected = "it")
+    .update_lang_buttons("it")
+  }, ignoreInit = TRUE)
+  observeEvent(input$heroLangEN, {
+    updateSelectInput(session, "language", selected = "en")
+    .update_lang_buttons("en")
+  }, ignoreInit = TRUE)
+  observeEvent(input$heroLangIT, {
+    updateSelectInput(session, "language", selected = "it")
+    .update_lang_buttons("it")
+  }, ignoreInit = TRUE)
+  # Keep buttons in sync when language is changed from within the modal too
   observeEvent(input$language, {
     .update_lang_buttons(input$language)
-  }, ignoreInit = FALSE)
-
-  # On first flush: send EN if the client hasn't already chosen a language.
-  # Must use isolate() — onFlushed is not a reactive consumer.
-  session$onFlushed(function() {
-    cur <- isolate(input$language) %||% ""
-    if (!nzchar(cur)) {
-      session$sendCustomMessage("cumba_set_lang", list(lang = "en"))
-      .update_lang_buttons("en")
-    }
-  }, once = TRUE)
+  }, ignoreInit = TRUE)
 
   # ===== Variety catalog =====================================================
   # When user selects a variety, update CycleLength, RUE, k0 sliders and show
@@ -122,6 +124,8 @@ function(input, output, session) {
 
   # Reverse geocoding (Nominatim) — mostra il nome del luogo dopo il clic.
   place_name <- reactiveVal(NULL)
+  # SoilGrids auto-fetch result (list with FieldCapacity, WiltingPoint, etc.)
+  soil_data_auto <- reactiveVal(NULL)
 
   observeEvent(selected_point(), {
     pt <- selected_point()
@@ -139,9 +143,22 @@ function(input, output, session) {
     set_mode("focus")
     # Reverse-geocode in background
     place_name(NULL)
+    soil_data_auto(NULL)   # reset while loading
     nm <- tryCatch(reverse_geocode_nominatim(pt[2], pt[1]),
                    error = function(e) NULL)
     if (!is.null(nm) && nzchar(nm)) place_name(nm)
+    # SoilGrids fetch (background; does not block the UI)
+    sd <- tryCatch(fetch_soil_soilgrids(pt[1], pt[2]),
+                   error = function(e) {
+                     message("[SoilGrids] error: ", conditionMessage(e))
+                     NULL
+                   })
+    soil_data_auto(sd)
+    if (!is.null(sd))
+      message(sprintf("[SoilGrids] FC=%.3f WP=%.3f clay=%.1f%% sand=%.1f%% source=%s",
+                      sd$FieldCapacity, sd$WiltingPoint,
+                      sd$clay_pct %||% NA, sd$sand_pct %||% NA,
+                      sd$source %||% "?"))
   }, ignoreNULL = TRUE, ignoreInit = FALSE)
 
   # Bottone "cambia campo" -> torna a pick
@@ -403,8 +420,8 @@ function(input, output, session) {
   )
 
   # ===== Parameters (debounced) ===========================================
-  # SoilGrids removed: pass NULL for soil_data (3 manual choices only)
-  params_raw <- reactive({ build_param_df(input, soil_data = NULL) })
+  # Pass soil_data_auto so that soilType=="auto" uses SoilGrids values.
+  params_raw <- reactive({ build_param_df(input, soil_data = soil_data_auto()) })
   params_df  <- params_raw |> debounce(350)
 
   # ===== Run cumba safely for one year ====================================
@@ -560,12 +577,10 @@ function(input, output, session) {
   # ---- Esegui simulazione "after" e calcola delta ----
   observeEvent(input$learningRecalc, {
     pname <- input$learningParam
-    if (is.null(pname)) return()
+    new_val <- input$learningValue
+    if (is.null(pname) || is.null(new_val)) return()
     meta <- learning_meta[[pname]]
     if (is.null(meta)) return()
-    # input$learningValue can be NULL if ionRangeSlider didn't initialise inside
-    # the hidden modal — fall back to the calibrated default in that case.
-    new_val <- input$learningValue %||% meta$default
 
     par_df <- params_df()
     om <- weather_data()
@@ -872,19 +887,44 @@ function(input, output, session) {
     # Quando ON, il modello NON propone irrigazioni automatiche oltre quelle
     # gia' decise dall'agricoltore. Cosi' l'utente vede l'IMPATTO PURO del
     # togliere/aggiungere senza compensazione.
-    # FREEZE semplificato (v2): in modalità freeze impostare irrigationStopCycle=0
-    # impedisce qualsiasi irrigazione automatica. Solo le scelte dell'agricoltore
-    # (action="applied" in irr_overrides) producono irrigazione. Niente pre-run.
+    # Implementazione: faccio un primo run normale per ottenere le date
+    # delle irrigazioni automatiche, poi le aggiungo all'override come
+    # "skip" — tranne quelle che l'utente ha esplicitamente "applied".
     freeze_mode <- isTRUE(input$freezeMode)
-    isc <- if (freeze_mode) 0L else (input$irrigationStopCycle %||% 85L)
+    isc <- input$irrigationStopCycle %||% 85   # slider value, default 85%
+    if (freeze_mode) {
+      pre_run <- run_one_year(wy, par, transplantingDOY(),
+                              snap$ws_veg, snap$ws_rep, snap$ws_rip,
+                              snap$turn_veg, snap$turn_rep, snap$turn_rip,
+                              irrigationOverride  = NULL,
+                              irrigationStopCycle = isc)
+      if (!is.null(pre_run) && nrow(pre_run)) {
+        auto_dates <- as.Date(pre_run$DATE[pre_run$irrigation > 0])
+        # Date che l'utente ha gia' agito (skip o applied) -> NON aggiungere
+        existing_keys <- if (!is.null(ovr_df)) format(ovr_df$date, "%Y-%m-%d")
+                         else character(0)
+        new_skip_dates <- auto_dates[!format(auto_dates, "%Y-%m-%d") %in% existing_keys]
+        if (length(new_skip_dates)) {
+          extra_df <- data.frame(date = new_skip_dates,
+                                 mm = 0, action = "skip",
+                                 stringsAsFactors = FALSE)
+          ovr_df <- if (is.null(ovr_df)) extra_df
+                    else rbind(ovr_df, extra_df)
+        }
+        message(sprintf("[current_run] FREEZE attivo: %d skip auto-aggiunti",
+                        length(new_skip_dates)))
+      }
+    }
 
-    if (!is.null(ovr_df))
+    # Round 9: log dettagliato per debug
+    if (!is.null(ovr_df)) {
       message(sprintf("[current_run] OVERRIDE -> %d righe: %d skip + %d applied",
                       nrow(ovr_df),
                       sum(ovr_df$action == "skip"),
                       sum(ovr_df$action == "applied")))
-    if (freeze_mode)
-      message("[current_run] FREEZE ON: irrigationStopCycle=0, solo applied dell'utente")
+      message("[current_run] dates override: ",
+              paste(format(ovr_df$date, "%Y-%m-%d"), collapse = ", "))
+    }
 
     out <- run_one_year(wy, par, transplantingDOY(),
                         snap$ws_veg, snap$ws_rep, snap$ws_rip,
@@ -955,29 +995,6 @@ function(input, output, session) {
     out <- dplyr::left_join(out, fc_lookup, by = "DATE")
     out$is_forecast[is.na(out$is_forecast)] <- FALSE
     out
-  })
-
-  # ===== Rainfed baseline (zero irrigation) for freeze mode ================
-  # Shown as a dashed grey line so the user can compare their manually-added
-  # irrigation choices against the no-irrigation scenario.
-  rainfed_baseline <- reactive({
-    if (!isTRUE(input$freezeMode)) return(NULL)
-    om   <- weather_data(); if (is.null(om)) return(NULL)
-    par  <- params_df();    if (is.null(par)) return(NULL)
-    snap <- strategy_snapshot(); if (is.null(snap)) return(NULL)
-    cur_yr  <- as.integer(format(Sys.Date(), "%Y"))
-    om_cumba <- om_to_cumba(om)
-    om_cumba$year <- lubridate::year(om_cumba$DATE)
-    wy <- om_cumba[om_cumba$year == cur_yr, , drop = FALSE]
-    if (!nrow(wy)) return(NULL)
-    tryCatch(
-      run_one_year(wy, par, transplantingDOY(),
-                   snap$ws_veg, snap$ws_rep, snap$ws_rip,
-                   snap$turn_veg, snap$turn_rep, snap$turn_rip,
-                   irrigationOverride  = NULL,
-                   irrigationStopCycle = 0),   # 0 = never irrigate
-      error = function(e) NULL
-    )
   })
 
   output$override_status_banner <- renderUI({
@@ -1108,18 +1125,28 @@ function(input, output, session) {
     if (is.null(pt)) return(NULL)
 
     nm <- place_name()
+    sd <- soil_data_auto()
     coords <- sprintf("%.3f°N, %.3f°E", pt[2], pt[1])
     where_name <- if (!is.null(nm) && nzchar(nm)) nm else "Selected field"
 
     cur_yr <- as.integer(format(Sys.Date(), "%Y"))
     lang <- input$language %||% "en"
 
+    # Soil tooltip: show SoilGrids result when available
+    soil_tooltip <- if (!is.null(sd) && is.finite(sd$FieldCapacity)) {
+      sprintf("SoilGrids: FC=%.2f WP=%.2f (clay %.0f%%, sand %.0f%%)",
+              sd$FieldCapacity, sd$WiltingPoint,
+              sd$clay_pct %||% 0, sd$sand_pct %||% 0)
+    } else {
+      "Auto-fetch soil from SoilGrids (no key required)"
+    }
+
     div(class = "site-header",
         div(class = "site-pin", "📍"),
         div(class = "site-where",
             div(class = "site-name", where_name),
             div(class = "site-coords", coords)),
-        # Soil type: 3 manual choices only (SoilGrids removed)
+        # Soil type: "Auto (SoilGrids)" is now the default when data available
         div(class = "site-soil",
             tags$label(if (lang == "en") "Soil:" else "Suolo:",
                        class = "ss-trans-label"),
@@ -1127,10 +1154,11 @@ function(input, output, session) {
                         label = NULL,
                         choices = .SOIL_CHOICES,
                         selected = isolate({
-                          prev <- input$soilType %||% "sandy"
-                          if (prev %in% names(.SOIL_CHOICES)) prev else "sandy"
+                          prev <- input$soilType %||% "auto"
+                          if (prev %in% names(.SOIL_CHOICES)) prev else "auto"
                         }),
                         width = "130px"),
+            # Soil status span (reactive to both soilType and soil_data_auto)
             uiOutput("soil_status_span", inline = TRUE)
         ),
         div(class = "site-season",
@@ -1172,41 +1200,48 @@ function(input, output, session) {
   # ===== Soil status span (independent of site_header re-render) ==========
   output$soil_status_span <- renderUI({
     pt  <- selected_point(); if (is.null(pt)) return(NULL)
-    st  <- input$soilType %||% "sandy"
-    span_style <- paste0("font-size:10px; color:#fff;",
-                         "text-shadow:0 0 3px rgba(0,0,0,.55);",
-                         "white-space:nowrap;")
-    sm <- .SOIL_TYPES[[st]]
-    if (!is.null(sm) && is.finite(sm$FieldCapacity)) {
-      awc <- sm$FieldCapacity - sm$WiltingPoint
-      tags$span(style = span_style,
-                HTML(sprintf("&#10003; FC&nbsp;%.2f&nbsp;WP&nbsp;%.2f&nbsp;AWC&nbsp;%.2f",
-                             sm$FieldCapacity, sm$WiltingPoint, awc)))
-    } else NULL
+    sd  <- soil_data_auto()
+    st  <- input$soilType %||% "auto"
+    soil_tooltip <- if (!is.null(sd) && is.finite(sd$FieldCapacity))
+      sprintf("SoilGrids: FC=%.2f WP=%.2f (clay %.0f%%, sand %.0f%%)",
+              sd$FieldCapacity, sd$WiltingPoint,
+              sd$clay_pct %||% 0, sd$sand_pct %||% 0)
+    else "Auto-fetch soil from SoilGrids (no key required)"
+    if (identical(st, "auto")) {
+      if (!is.null(sd) && is.finite(sd$FieldCapacity))
+        tags$span(title = soil_tooltip,
+                  style = "font-size:10px; color:#2e7d32; cursor:help; white-space:nowrap;",
+                  HTML(sprintf(
+                    "&#10003; FC&nbsp;%.2f&nbsp;|&nbsp;WP&nbsp;%.2f&nbsp;|&nbsp;clay&nbsp;%.0f%%&nbsp;sand&nbsp;%.0f%%",
+                    sd$FieldCapacity, sd$WiltingPoint,
+                    sd$clay_pct %||% 0, sd$sand_pct %||% 0)))
+      else
+        tags$span(title = soil_tooltip,
+                  style = "font-size:10px; color:#888; cursor:help;",
+                  HTML("&#8987; fetching soil..."))
+    } else {
+      sm <- .SOIL_TYPES[[st]]
+      if (!is.null(sm) && is.finite(sm$FieldCapacity))
+        tags$span(style = "font-size:10px; color:#1565c0; white-space:nowrap;",
+                  HTML(sprintf("&#10003; FC&nbsp;%.2f&nbsp;|&nbsp;WP&nbsp;%.2f",
+                               sm$FieldCapacity, sm$WiltingPoint)))
+      else NULL
+    }
   })
 
   output$today_card <- renderUI({
     pt <- selected_point()
     if (is.null(pt)) {
-      {
-        lang_wc <- input$language %||% "en"
-        return(div(class = "today-card", style = "--today-color:#2e7d32",
-          div(class = "today-icon",
-              tags$img(src = "cumba_avatar.png",
-                       style = "width:56px;height:56px;object-fit:contain;",
-                       onerror = "this.replaceWith(document.createTextNode('🍅'))")),
-          div(class = "today-body",
-            div(class = "today-date", if (lang_wc == "it") "CIAO!" else "HI THERE!"),
-            div(class = "today-headline",
-                if (lang_wc == "it") "Clicca un punto sulla mappa per selezionare il campo"
-                else "Click a point on the map to select your field"),
-            div(class = "today-detail",
-                if (lang_wc == "it")
-                  "Recupereremo meteo storico e previsioni da Open-Meteo, simula la stagione, e ti diremo cosa fare oggi."
-                else
-                  "We'll pull historical weather and forecast from Open-Meteo, simulate the season, and tell you what to do today."))
-        ))
-      }
+      return(div(class = "today-card", style = "--today-color:#888",
+        div(class = "today-icon", "👉"),
+        div(class = "today-body",
+          div(class = "today-date", "WELCOME"),
+          div(class = "today-headline",
+              "Click a point on the map to select your field"),
+          div(class = "today-detail",
+              "We'll pull historical weather and forecast from Open-Meteo, ",
+              "simulate the season, and tell you what to do today."))
+      ))
     }
 
     info <- today_info()
@@ -1753,45 +1788,19 @@ function(input, output, session) {
 
   # ===== Plot wrapper: empty placeholder OR plotly ========================
   output$mainPlot_wrap <- renderUI({
-    cur  <- current_run()
-    env  <- hist_envelope()
-    hist <- historical_runs()
-    if (is.null(cur) && is.null(env) && (is.null(hist) || !nrow(hist))) {
+    cur <- current_run()
+    env <- hist_envelope()
+    if (is.null(cur) && is.null(env)) {
       pt <- selected_point()
-      {
-        lang_pl <- input$language %||% "en"
-        if (is.null(pt))
-          return(div(class = "plot-empty",
-                     div(class = "big", "\U0001F5FA️"),
-                     if (lang_pl %in% c("it","foggiano")) "Clicca un punto sulla mappa per avviare la simulazione."
-                     else "Click on the map to start the simulation."))
+      if (is.null(pt))
         return(div(class = "plot-empty",
-                   div(class = "big", "⏳"),
-                   if (lang_pl %in% c("it","foggiano")) "Caricamento meteo / simulazione in corso…"
-                   else "Loading weather / simulation running…"))
-      }
+                   div(class = "big", "🗺️"),
+                   "Clicca un punto sulla mappa per avviare la simulazione."))
+      return(div(class = "plot-empty",
+                 div(class = "big", "⏳"),
+                 "Caricamento meteo / simulazione in corso…"))
     }
-    lang_pl  <- input$language %||% "en"
-    cur_yr   <- as.integer(format(Sys.Date(), "%Y"))
-    hist_yrs <- if (!is.null(hist) && "year" %in% names(hist))
-      sort(unique(as.integer(hist$year)), decreasing = TRUE) else integer(0)
-    yr_choices <- c(
-      setNames(as.character(cur_yr),
-               if (lang_pl %in% c("it","foggiano")) sprintf("%d (corrente)", cur_yr)
-               else                                  sprintf("%d (current)", cur_yr)),
-      setNames(as.character(hist_yrs), as.character(hist_yrs)))
-    tagList(
-      div(style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;",
-          tags$label(if (lang_pl %in% c("it","foggiano")) "Stagione:" else "Season:",
-                     style = "font-size:12px; color:#555; margin:0;"),
-          if (length(hist_yrs) > 0)
-            selectInput("viewYear", NULL, choices = yr_choices,
-                        selected = isolate(input$viewYear %||% as.character(cur_yr)),
-                        width = "160px")
-          else
-            span(style = "font-size:12px; color:#888;", as.character(cur_yr))),
-      plotlyOutput("mainPlot", height = 640)
-    )
+    plotlyOutput("mainPlot", height = 640)
   })
 
   # ===== Main multi-panel plot (SOLO 2 PANNELLI) ==========================
@@ -1809,42 +1818,7 @@ function(input, output, session) {
   # banda grigia che si fa via via piu' opaca per indicare la minore certezza
   # delle proiezioni dell'ensemble (analoghi storici).
   output$mainPlot <- renderPlotly({
-    lang    <- input$language %||% "en"
-    cur_yr  <- as.integer(format(Sys.Date(), "%Y"))
-    view_yr <- suppressWarnings(as.integer(input$viewYear %||% cur_yr))
-    if (!is.finite(view_yr)) view_yr <- cur_yr
-
-    # Past-season mode: use historical run for selected year
-    if (view_yr != cur_yr) {
-      hist <- historical_runs()
-      if (!is.null(hist) && "year" %in% names(hist)) {
-        cur <- hist[as.integer(hist$year) == view_yr, , drop = FALSE]
-        if (!nrow(cur)) cur <- NULL
-      } else cur <- NULL
-    } else {
-      cur <- current_run()
-    }
-
-    # Clip simulation at 100% cycle completion (harvest date).
-    # Also record harvest_date to constrain x_max.
-    harvest_date <- NULL
-    if (!is.null(cur) && nrow(cur) > 0 && "cycleCompletion" %in% names(cur)) {
-      cc <- suppressWarnings(as.numeric(cur$cycleCompletion))
-      cutoff_idx <- which(is.finite(cc) & cc >= 100)
-      if (length(cutoff_idx) > 0) {
-        cur <- cur[seq_len(cutoff_idx[1L]), , drop = FALSE]
-        harvest_date <- as.Date(cur$DATE[nrow(cur)])
-      }
-    }
-
-    # Rainfed baseline for freeze mode (no irrigation)
-    rf  <- if (isTRUE(input$freezeMode)) rainfed_baseline() else NULL
-    # Also clip rainfed at harvest date
-    if (!is.null(rf) && !is.null(harvest_date)) {
-      rf <- rf[as.Date(rf$DATE) <= harvest_date, , drop = FALSE]
-    }
-    has_rf <- !is.null(rf) && nrow(rf) > 0
-
+    cur     <- current_run()
     env     <- hist_envelope()
     env_ens <- current_run_envelope()
     if (is.null(cur) && is.null(env)) return(NULL)
@@ -1853,21 +1827,15 @@ function(input, output, session) {
     has_env <- !is.null(env)     && nrow(env)     > 0
     has_ens <- !is.null(env_ens) && nrow(env_ens) > 0
 
-    # ---- X axis range: clipped to harvest date --------------------------
+    # ---- X axis range : full season -------------------------------------
     today <- Sys.Date()
     xs <- list()
-    if (has_env) {
-      env_dates <- env$DATE[as.Date(env$DATE) <= (harvest_date %||% max(env$DATE, na.rm=TRUE))]
-      if (length(env_dates)) xs <- c(xs, list(range(as.Date(env_dates), na.rm = TRUE)))
-    }
-    if (has_cur) xs <- c(xs, list(range(as.Date(cur$DATE), na.rm = TRUE)))
-    if (has_ens && is.null(harvest_date))
-      xs <- c(xs, list(range(as.Date(env_ens$DATE), na.rm = TRUE)))
+    if (has_env) xs <- c(xs, list(range(env$DATE,     na.rm = TRUE)))
+    if (has_cur) xs <- c(xs, list(range(cur$DATE,     na.rm = TRUE)))
+    if (has_ens) xs <- c(xs, list(range(env_ens$DATE, na.rm = TRUE)))
     xs <- c(xs, list(c(today, today + 16L)))
     x_min <- min(do.call(c, xs), na.rm = TRUE)
-    # x_max = harvest date if available; otherwise max of all series
-    x_max <- if (!is.null(harvest_date)) harvest_date
-             else max(do.call(c, xs), na.rm = TRUE)
+    x_max <- max(do.call(c, xs), na.rm = TRUE)
 
     # ---- Reference shapes (today + forecast band) -----------------------
     has_fc <- has_cur && any(cur$is_forecast, na.rm = TRUE)
@@ -1926,7 +1894,7 @@ function(input, output, session) {
                   type = "scatter", mode = "lines",
                   line = list(width = 0), fill = "tonexty",
                   fillcolor = color_rgba,
-                  name = paste0(name_pref, if (lang == "it") " storico P10–P90" else " hist. P10–P90"),
+                  name = paste0(name_pref, " storico P10–P90"),
                   hovertemplate = paste0(name_pref, " hist<extra></extra>"),
                   yaxis = yaxis, inherit = FALSE)
     }
@@ -1944,8 +1912,9 @@ function(input, output, session) {
         add_trace(x = ef$DATE, y = ef[[md]] * scale,
                   type = "scatter", mode = "lines",
                   line = list(color = color_line, width = 2.2, dash = "dash"),
-                  name = paste0(name_pref, if (lang == "it") " proiezione (mediana analoghi)" else " projection (median analogues)"),
-                  hovertemplate = paste0(name_pref, if (lang == "it") " proiezione: %{y:.1f}<extra></extra>" else " projection: %{y:.1f}<extra></extra>"),
+                  name = paste0(name_pref, " proiezione (mediana analoghi)"),
+                  hovertemplate = paste0(name_pref,
+                                         " proiezione: %{y:.1f}<extra></extra>"),
                   yaxis = yaxis, inherit = FALSE)
     }
 
@@ -1972,11 +1941,11 @@ function(input, output, session) {
     if (has_env && "irrigation_p50" %in% names(env)) {
       p1 <- p1 |>
         add_trace(x = env$DATE, y = env$irrigation_p50,
-                  type = "bar", name = if (lang == "it") "Irrig. storica mediana" else "Hist. median irrig.",
+                  type = "bar", name = "Irrig. storica mediana",
                   marker = list(color = "rgba(229,57,53,0.30)",
                                 line = list(width = 0)),
                   yaxis = "y2", opacity = 0.85,
-                  hovertemplate = if (lang == "it") "Irrig. storica mediana: %{y:.0f} mm<extra></extra>" else "Hist. median irrig.: %{y:.0f} mm<extra></extra>",
+                  hovertemplate = "Irrig. storica mediana: %{y:.0f} mm<extra></extra>",
                   inherit = FALSE)
     }
     # Round 12: barre "Irrig. previste oltre 16gg" RIMOSSE — duplicate
@@ -2016,7 +1985,7 @@ function(input, output, session) {
         p1 <- p1 |>
           add_trace(x = cur$DATE, y = flo_disp,
                     type = "scatter", mode = "lines",
-                    name = if (lang == "it") "🌼 Fioritura" else "🌼 Flowering",
+                    name = "🌼 Fioritura",
                     line = list(color = "#fbc02d", width = 3.5,
                                 shape = "spline", smoothing = 1),
                     fill = "tozeroy",
@@ -2069,14 +2038,14 @@ function(input, output, session) {
                   y = ifelse(is.finite(cur$p) & cur$p >= .RAIN_DAY_MM,
                              cur$p, 0),
                   type = "bar",
-                  name = sprintf(if (lang == "it") "🌧 Pioggia >=%.0f mm" else "🌧 Rain >=%.0f mm", .RAIN_DAY_MM),
+                  name = sprintf("🌧 Pioggia >=%.0f mm", .RAIN_DAY_MM),
                   marker = list(color = "rgba(25,118,210,0.75)"),
                   hovertemplate = "Pioggia: %{y:.0f} mm<extra></extra>",
                   yaxis = "y2", inherit = FALSE) |>
         # Irrigazione consigliata dal modello (rosso, asse y2). Disegnata
         # con un bordo cosi' si vede chiaramente vs. pioggia blu.
         add_trace(x = cur$DATE, y = cur$irrigation,
-                  type = "bar", name = if (lang == "it") "💧 Irrig. consigliata" else "💧 Suggested irrig.",
+                  type = "bar", name = "💧 Irrig. consigliata",
                   marker = list(color = "rgba(229,57,53,0.95)",
                                 line = list(color = "#b71c1c", width = 0.5)),
                   yaxis = "y2", inherit = FALSE)
@@ -2104,13 +2073,13 @@ function(input, output, session) {
           p1 <- p1 |>
             add_trace(x = skip_dates, y = skip_y,
                       type = "scatter", mode = "markers",
-                      name = if (lang == "it") "🚫 Saltata" else "🚫 Skipped",
+                      name = "🚫 Saltata",
                       marker = list(symbol = "x-thin", size = 14,
                                     color = "#424242",
                                     line = list(color = "#212121",
                                                 width = 2.5)),
                       yaxis = "y2", inherit = FALSE,
-                      hovertemplate = if (lang == "it") "Saltata: %{y:.0f} mm<extra></extra>" else "Skipped: %{y:.0f} mm<extra></extra>")
+                      hovertemplate = "Saltata: %{y:.0f} mm<extra></extra>")
         }
 
         # Barre verdi per le irrigazioni FATTE dall'agricoltore
@@ -2121,38 +2090,24 @@ function(input, output, session) {
                             numeric(1))
           p1 <- p1 |>
             add_trace(x = appl_dates, y = appl_mm,
-                      type = "bar", name = if (lang == "it") "💚 Fatta da te" else "💚 Manual",
+                      type = "bar", name = "💚 Fatta da te",
                       marker = list(color = "rgba(46,125,50,0.92)",
                                     line = list(color = "#1b5e20",
                                                 width = 0.5)),
                       yaxis = "y2", inherit = FALSE,
-                      hovertemplate = if (lang == "it") "Tu hai irrigato: %{y:.0f} mm<extra></extra>" else "You irrigated: %{y:.0f} mm<extra></extra>")
+                      hovertemplate = "Tu hai irrigato: %{y:.0f} mm<extra></extra>")
         }
       }
-    }
-
-    # Rainfed baseline (dashed grey): shown in freeze mode for comparison
-    if (has_rf && "fruitFreshWeightAct" %in% names(rf)) {
-      p1 <- p1 |>
-        add_trace(x = rf$DATE, y = rf$fruitFreshWeightAct / 100,
-                  type = "scatter", mode = "lines",
-                  name = if (lang %in% c("it","foggiano")) "🌵 Senz'acqua (asciutto)" else "🌵 Rainfed (no irrig.)",
-                  line = list(color = "rgba(120,120,120,0.6)", width = 1.8, dash = "dot"),
-                  hovertemplate = if (lang %in% c("it","foggiano"))
-                    "Senz'acqua: %{y:.1f} t/ha<extra></extra>"
-                  else
-                    "Rainfed: %{y:.1f} t/ha<extra></extra>",
-                  inherit = FALSE)
     }
 
     # Round 11: titoli asse Y CORTI per non sovrapporsi. Le scale sono
     # gia' chiare dalla legenda; il titolo dice solo "scala unificata".
     p1 <- p1 |> layout(
-      yaxis  = list(title = list(text = if (lang == "it") "scala (vedi legenda)" else "scale (see legend)",
+      yaxis  = list(title = list(text = "scala (vedi legenda)",
                                  font = list(size = 10, color = "#999"),
                                  standoff = 6),
                     range = c(0, 150), zeroline = TRUE),
-      yaxis2 = list(title = list(text = if (lang == "it") "mm/giorno" else "mm/day",
+      yaxis2 = list(title = list(text = "mm/giorno",
                                  font = list(size = 10, color = "#999")),
                     overlaying = "y",
                     side = "right", showgrid = FALSE,
@@ -2176,21 +2131,10 @@ function(input, output, session) {
       p2 <- p2 |>
         add_trace(x = cur$DATE, y = cur$ftsw * 100,
                   type = "scatter", mode = "lines",
-                  name = if (lang %in% c("it","foggiano")) "\U0001F4A7 Acqua nel suolo (%)" else "\U0001F4A7 Soil water (%)",
+                  name = "💧 Acqua nel suolo (%)",
                   line = list(color = "#1565c0", width = 2.6),
                   customdata = cur$ftsw,
-                  hovertemplate = if (lang %in% c("it","foggiano")) "Acqua nel suolo: %{y:.0f}%<extra></extra>" else "Soil water: %{y:.0f}%<extra></extra>",
-                  inherit = FALSE)
-    }
-
-    # Rainfed ftsw (dashed grey) in freeze mode
-    if (has_rf && "ftsw" %in% names(rf)) {
-      p2 <- p2 |>
-        add_trace(x = rf$DATE, y = rf$ftsw * 100,
-                  type = "scatter", mode = "lines",
-                  name = if (lang %in% c("it","foggiano")) "🌵 Acqua (asciutto)" else "🌵 Soil water (rainfed)",
-                  line = list(color = "rgba(120,120,120,0.55)", width = 1.6, dash = "dot"),
-                  hovertemplate = "Rainfed soil water: %{y:.0f}%<extra></extra>",
+                  hovertemplate = "Acqua nel suolo: %{y:.0f}%<extra></extra>",
                   inherit = FALSE)
     }
 
@@ -2200,7 +2144,7 @@ function(input, output, session) {
       p2 <- p2 |>
         add_trace(x = cur$DATE, y = stress_pct,
                   type = "scatter", mode = "lines",
-                  name = if (lang %in% c("it","foggiano")) "\U0001F975 Stress idrico (%)" else "\U0001F975 Water stress (%)",
+                  name = "🥵 Stress idrico (%)",
                   line = list(color = "#c62828", width = 2.2, dash = "dot"),
                   hovertemplate = "Stress idrico: %{y:.0f}%<extra></extra>",
                   inherit = FALSE)
@@ -2222,7 +2166,7 @@ function(input, output, session) {
         )
         today_marker_ann <- list(list(
           x = today, y = wpct_today + 8, xref = "x", yref = "y",
-          text = sprintf(if (lang == "it") "oggi: %.0f%%" else "today: %.0f%%", wpct_today),
+          text = sprintf("oggi: %.0f%%", wpct_today),
           showarrow = FALSE,
           font = list(size = 11, color = "#d32f2f"),
           bgcolor = "rgba(255,255,255,0.85)"
@@ -2272,11 +2216,11 @@ function(input, output, session) {
     #   phenoCode = 3 -> RIPENING / MATURAZIONE
     # Prima cercavo 2,3,4: la maturazione non veniva MAI disegnata.
     seg_v <- phase_threshold_segment(1L, as.numeric(input$ws_veg),
-                                     "#43a047", if (lang == "it") "🌱 Vegetativa" else "🌱 Vegetative")
+                                     "#43a047", "🌱 Vegetativa")
     seg_r <- phase_threshold_segment(2L, as.numeric(input$ws_rep),
-                                     "#1e88e5", if (lang == "it") "🌸 Riproduttiva" else "🌸 Reproductive")
+                                     "#1e88e5", "🌸 Riproduttiva")
     seg_p <- phase_threshold_segment(3L, as.numeric(input$ws_rip),
-                                     "#fb8c00", if (lang == "it") "🍅 Maturazione" else "🍅 Ripening")
+                                     "#fb8c00", "🍅 Maturazione")
     for (s in list(seg_v, seg_r, seg_p)) {
       if (!is.null(s)) {
         p2_shapes <- c(p2_shapes, list(s$shape))
@@ -2285,7 +2229,7 @@ function(input, output, session) {
     }
 
     p2 <- p2 |> layout(
-      yaxis  = list(title = list(text = if (lang %in% c("it","foggiano")) "% acqua / stress" else "% water / stress",
+      yaxis  = list(title = list(text = "% acqua / stress",
                                   font = list(size = 10, color = "#999"),
                                   standoff = 6),
                     range = c(0, 105), zeroline = TRUE),
@@ -2333,28 +2277,28 @@ function(input, output, session) {
     # forecast a y=1.05.
     top_anns <- list(
       list(x = 0, y = 1.18, xref = "paper", yref = "paper",
-           text = if (lang == "it") "<b>🌿 Crescita: canopy, yield, fioritura, brix</b>" else "<b>🌿 Growth: canopy, yield, flowering, brix</b>",
+           text = "<b>🌿 Crescita: canopy, yield, fioritura, brix</b>",
            showarrow = FALSE,
            font = list(size = 14, color = "#2e7d32"),
            xanchor = "left"),
       list(x = 0, y = 0.46, xref = "paper", yref = "paper",
-           text = if (lang == "it") "<b>💧 Acqua nel suolo + stress idrico</b>" else "<b>💧 Soil water + water stress</b>",
+           text = "<b>💧 Acqua nel suolo + stress idrico</b>",
            showarrow = FALSE,
            font = list(size = 13, color = "#1565c0"),
            xanchor = "left",
            bgcolor = "rgba(255,255,255,0.97)",
            borderpad = 3),
       list(x = today, y = 1.04, xref = "x", yref = "paper",
-           text = if (lang == "it") "oggi" else "today", showarrow = FALSE,
+           text = "oggi", showarrow = FALSE,
            font = list(size = 10, color = "#2e7d32"), xanchor = "center"),
       list(x = fc_end, y = 1.04, xref = "x", yref = "paper",
-           text = paste0(if (lang == "it") "fine forecast" else "forecast end", fan_lbl), showarrow = FALSE,
+           text = paste0("fine forecast", fan_lbl), showarrow = FALSE,
            font = list(size = 10, color = "#ef6c00"), xanchor = "center")
     )
     if (!is.null(flo_peak_date)) {
       top_anns <- c(top_anns, list(list(
         x = flo_peak_date, y = 1.06, xref = "x", yref = "paper",
-        text = if (lang == "it") "🌻 fioritura piena" else "🌻 full flowering", showarrow = FALSE,
+        text = "🌻 fioritura piena", showarrow = FALSE,
         font = list(size = 10, color = "#fbc02d"), xanchor = "center")))
     }
     sp <- sp |> layout(annotations = top_anns)
@@ -2753,142 +2697,3 @@ saltato/aggiunto irrigazioni, commenta brevemente la sua scelta.",
       if ((input$language %||% "en") == "en") "New conversation with CUMBA."
       else "Nuova conversazione con CUMBA.",
       type = "default", duration = 2)
-  }, ignoreInit = TRUE)
-
-  # ===== Chat thread renderer =============================================
-  output$interpretation_text <- renderUI({
-    history <- chat_history()
-    lang    <- input$language %||% "en"
-    it      <- lang %in% c("it", "foggiano")
-    if (length(history) == 0L) {
-      return(div(class = "chat-msg chat-msg-empty",
-                 div(class = "chat-msg-body",
-                     if (it) "\U0001f449 premi ↻ per un briefing, o scrivi una domanda qui sotto."
-                     else    "\U0001f449 press ↻ for an agronomic briefing, or type a question below.")))
-    }
-    visible <- Filter(function(m) !isTRUE(m$hidden), history)
-    if (length(visible) == 0L)
-      return(div(class = "chat-msg chat-msg-empty",
-                 div(class = "chat-msg-body",
-                     if (it) "⏳ CUMBA sta elaborando..."
-                     else    "⏳ CUMBA is thinking...")))
-    div(class = "chat-stream",
-        lapply(visible, function(m) {
-          is_user <- identical(m$role, "user")
-          is_err  <- grepl("^\\[|^Errore|^Error|^Network|^LLM error", m$content %||% "")
-          cls  <- if (is_user) "chat-msg chat-msg-user"
-                  else if (is_err) "chat-msg chat-msg-error"
-                  else "chat-msg chat-msg-assistant"
-          icon <- if (is_user) "\U0001f464"
-                  else tags$img(src = "cumba_avatar.png",
-                                style = "width:20px;height:20px;object-fit:contain;",
-                                onerror = "this.replaceWith(document.createTextNode('\U0001f345'))")
-          div(class = cls,
-              div(class = "chat-msg-icon", icon),
-              div(class = "chat-msg-body",
-                  HTML(gsub("\n", "<br>",
-                            htmltools::htmlEscape(m$content %||% "")))))
-        }))
-  })
-
-  # ===== Chat send handler =================================================
-  observeEvent(input$chatSendBtn, {
-    msg <- trimws(isolate(input$chatInput) %||% "")
-    if (!nzchar(msg)) return()
-    updateTextAreaInput(session, "chatInput", value = "")
-    lang <- input$language %||% "en"
-
-    cur <- chat_history()
-
-    # Seed hidden context if no user message yet
-    if (!any(vapply(cur, function(m) identical(m$role, "user"), logical(1)))) {
-      ctx <- tryCatch(build_llm_summary(), error = function(e) "No simulation data yet.")
-      cur <- c(cur, list(list(role = "user", content = as.character(ctx), hidden = TRUE)))
-    }
-
-    cur <- c(cur, list(list(role = "user", content = msg, hidden = FALSE)))
-    chat_history(cur)
-    llm_is_chat(TRUE)
-    llm_state(list(status = "loading", note = NULL, diag = NULL))
-
-    msgs_for_llm <- lapply(cur, function(m) list(role = m$role, content = m$content))
-    txt <- tryCatch(
-      interpret_with_llm(msgs_for_llm,
-                         language    = lang,
-                         runtime_key = input$user_llm_key %||% NULL),
-      error = function(e) structure(conditionMessage(e), class = c("cumba_llm_err","character"))
-    )
-
-    is_err <- inherits(txt, "cumba_llm_err") || is.null(txt) || !nzchar(as.character(txt %||% ""))
-    if (is_err) {
-      reply <- if (lang %in% c("it","foggiano")) "Spiacente, errore LLM. Riprova."
-               else "Sorry, couldn't reach the LLM. Please retry."
-      chat_history(c(cur, list(list(role = "assistant", content = reply, hidden = FALSE))))
-      llm_state(list(status = "fallback", note = as.character(txt %||% ""), diag = NULL))
-    } else {
-      chat_history(c(cur, list(list(role = "assistant", content = as.character(txt), hidden = FALSE))))
-      llm_state(list(status = "ok", note = NULL, diag = NULL))
-    }
-    llm_is_chat(FALSE)
-  }, ignoreInit = TRUE)
-
-  # LLM pulse notification (toolbar badge)
-  observeEvent(llm_text(), {
-    if (!is.null(llm_text()))
-      session$sendCustomMessage("cumba_llm_pulse", TRUE)
-  }, ignoreNULL = TRUE)
-  observeEvent(input$llm_modal_open, {
-    a <- input$llm_modal_open
-    if (isTRUE(a$open))
-      session$sendCustomMessage("cumba_llm_pulse", FALSE)
-  }, ignoreInit = TRUE)
-
-  output$llm_status <- renderUI({
-    st <- llm_state()
-    if (is.null(st) || st$status == "idle" || st$status == "ok") return(NULL)
-    if (st$status == "loading") {
-      return(div(class = "llm-status", "\U0001f916 sto pensando..."))
-    }
-    if (st$status == "fallback") {
-      note_html <- if (!is.null(st$note))
-        div(style = "color:#bf360c;",
-            HTML(paste0("⚠ ", htmltools::htmlEscape(st$note))))
-        else NULL
-      diag_html <- if (!is.null(st$diag) && nzchar(st$diag))
-        tags$details(style = "margin-top:6px;",
-                     tags$summary("Mostra dettaglio tecnico",
-                                  style = "cursor:pointer; font-size:11px; color:#6d4c41;"),
-                     tags$pre(st$diag,
-                              style = paste("font-size:10.5px; background:#fff;",
-                                            "padding:6px 8px; border-radius:4px;",
-                                            "border:1px solid #eee; margin-top:4px;",
-                                            "white-space:pre-wrap;")))
-        else NULL
-      return(div(class = "llm-status", note_html, diag_html))
-    }
-    NULL
-  })
-
-  # Pill colorata accanto al titolo "CUMBA spiega"
-  output$llm_pill <- renderUI({
-    st <- llm_state()
-    if (is.null(st) || st$status == "idle") return(NULL)
-    if (st$status == "loading")
-      return(span(class = "llm-pill fb", "..."))
-    if (st$status == "ok")
-      return(span(class = "llm-pill ok", "LLM"))
-    if (st$status == "fallback")
-      return(span(class = "llm-pill fb",
-                  title = if (!is.null(st$note)) st$note else "",
-                  "REGOLE"))
-    NULL
-  })
-
-  # Prevent Shiny from suspending outputs inside display:none modal panels
-  outputOptions(output, "interpretation_text", suspendWhenHidden = FALSE)
-  outputOptions(output, "llm_status",          suspendWhenHidden = FALSE)
-  outputOptions(output, "llm_pill",            suspendWhenHidden = FALSE)
-  outputOptions(output, "learningSliderUI",    suspendWhenHidden = FALSE)
-  outputOptions(output, "learningKpiBox",      suspendWhenHidden = FALSE)
-  outputOptions(output, "learningComment",     suspendWhenHidden = FALSE)
-}

@@ -50,6 +50,13 @@
 #' @param irrigation_df A \code{data.frame} with the irrigation schedule for each
 #'   experiment/site, containing columns \code{ID}, \code{Site}, \code{YEAR},
 #'   \code{DATE}, \code{WVOL}.
+#' @param irrigationEfficiency Numeric (0–1). Fraction of the observed applied
+#'   water (\code{WVOL}) that effectively reaches the root zone. Default
+#'   \code{0.9} (90\%, typical for drip irrigation). The \code{irrigation}
+#'   column in the output retains the original gross \code{WVOL} values; only
+#'   the soil water balance uses the net fraction
+#'   (\code{WVOL * irrigationEfficiency}). Set to \code{1} to disable the
+#'   correction.
 #' @param fullOut Logical. If \code{FALSE} (default) returns key outputs; if
 #'   \code{TRUE} returns all internal variables.
 #'
@@ -116,9 +123,10 @@
 #' @export
 cumba_experiment <- function(weather, 
                              param, 
-                             estimateRad=T, 
-                             estimateET0=T, 
+                             estimateRad=T,
+                             estimateET0=T,
                              irrigation_df,
+                             irrigationEfficiency = 0.9,
                              fullOut = F)
 {
   # convert param list
@@ -463,7 +471,7 @@ cumba_experiment <- function(weather,
             cycleFIntMax=prevOut[['fIntAct']]
           }
 
-          kc<- kcCompute(fIntAct,kcIni, kcMax,kcMaxAct,cycleFIntMax, cycleCompletion)
+          kc<- kcCompute(fIntAct,kcIni, kcMax,kcMaxAct,cycleFIntMax, cycleCompletion,fIntMax)
           etR<-etRCompute(et0, kc)
 
           ## Compute soil water content at 1 layer (3cm)----
@@ -498,7 +506,8 @@ cumba_experiment <- function(weather,
           
           #compute soil water dynamics
           soilModel <- soilWaterModel(doy, outputs, ftsw,
-                                      depletionFraction, irrigation, p,
+                                      depletionFraction,
+                                      irrigation * irrigationEfficiency, p,
                          rootState, rootRate, rootDepthInitial, rootDepthMax, etR,
                          waterStressFactor, fIntAct,
                          et0,daysNoRain,fieldCapacity, wiltingPoint,
@@ -698,8 +707,6 @@ cumba_experiment <- function(weather,
   
   ## Print the execution time ---- 
   endTime <- Sys.time()
-  elapsedTime <- round(endTime - startTime,1)
-  cat("\nElapsed time:", elapsedTime, "\n")
   
   rownames(dfOut) <- NULL
   
@@ -720,41 +727,142 @@ cumba_experiment <- function(weather,
   return(dfOut)
 }
 
-#' the CUMBA model
+#' CUMBA model — automatic irrigation scenario runner
 #'
-#' It is a daily time step simulation model which computes the yield and brix degree of a tomato crop as a function of weather data and irrigation options.
-#' @param weather a dataframe with weather data which must have the following columns......
-#' @param param A named list of model parameters, where each element is a list with fields 'value', 'min', 'max', and 'description'
-#' @param estimateRad a boolean value to estimate solar radiation based on temperature using Hargreaves model. Default to 'true' (implying that the column Lat is present in weather df) if 'false' the 'weather' df must have the Rad column
-#' @param estimateET0 a boolean value to estimate reference evapotranspiration based on temperature using Hargreaves model. Default to 'true'
-#' @param deficitIrrigation a boolean value to estimate irrigation requirements. Default to 'false', implying that the irrigation_df is provided.
-#' @param waterStressLevel a float corresponding to the threshold of water stress to trigger automatic irrigation. Default to .5, it is needed only if deficitIrrigation is 'true'.
-#' @param minimumTurn an integer corresponding to the minimum number of days elapsed from the previous irrigation event. Default to 4, it is needed only if deficitIrrigation is 'true'.
-#' @param fullOut boolean, if FALSE main output variables are saved (default), if TRUE all variables are saved
-#' @return a dataframe containing the weatherDf plus the daily outputs of the cumba model
-#' @examples 
-#' #' # Example weather dataframe
+#' Runs the daily time-step CUMBA simulation in \emph{scenario} (automatic
+#' irrigation) mode.  Unlike \code{\link{cumba}}, which requires an observed
+#' irrigation schedule, \code{cumba_scenario} computes irrigation
+#' autonomously based on soil-water status, phenological stage, and
+#' user-defined stress thresholds.  This is the function used by the CUMBA
+#' Shiny app for decision support and what-if analysis.
+#'
+#' @section Required weather columns:
+#' \code{weather} must contain \code{Site}, \code{Tx}, \code{Tn}, \code{P},
+#' \code{DATE}. Additionally:
+#' \itemize{
+#'   \item if \code{estimateRad = TRUE} (default), \code{Lat} is required;
+#'   \item if \code{estimateRad = FALSE}, \code{Rad} must be present;
+#'   \item if \code{estimateET0 = FALSE}, \code{ET0} must be present.
+#' }
+#'
+#' @param weather A \code{data.frame} (or tibble) of daily weather by site.
+#'   See \emph{Required weather columns} above.
+#' @param param Model parameters. Either a \emph{named list} where each
+#'   element is itself a list with fields \code{value}, \code{min},
+#'   \code{max}, \code{description} (as returned by \code{\link{cumbaParameters}}),
+#'   or a tibble/data.frame of numeric parameter values already unpacked.
+#'   See \code{\link{cumba}} for the full list of required parameter names.
+#' @param estimateRad Logical. If \code{TRUE} (default), solar radiation is
+#'   estimated from temperature (Hargreaves); \code{Lat} must be in
+#'   \code{weather}. If \code{FALSE}, \code{weather} must include \code{Rad}.
+#' @param estimateET0 Logical. If \code{TRUE} (default), ET0 is estimated
+#'   from temperature (Hargreaves). If \code{FALSE}, \code{weather} must
+#'   include \code{ET0}.
+#' @param transplantingDOY Integer. Day of year (1–365) of transplanting.
+#'   The model starts accumulating GDD and running the water balance from
+#'   this day. Default \code{120} (approx. 30 April).
+#' @param irrigationStrategy A named list with three phenological phases —
+#'   \code{vegetative}, \code{reproductive}, \code{ripening} — each
+#'   containing:
+#'   \describe{
+#'     \item{\code{wsLevel}}{Numeric (0–1). Fraction of transpirable soil
+#'       water below which irrigation is triggered (water-stress threshold).}
+#'     \item{\code{turnMin}}{Integer. Minimum number of days that must have
+#'       elapsed since the last irrigation event before a new one is allowed.}
+#'   }
+#'   Default: all phases use \code{wsLevel = 0.5} and \code{turnMin = 2}.
+#' @param irrigationStopCycle Numeric (0–100). Cycle-completion percentage
+#'   beyond which automatic irrigation is suppressed regardless of soil-water
+#'   status. Useful to implement a cut-off irrigation strategy near harvest.
+#'   Default \code{100} (no cut-off; irrigation runs until the end of the
+#'   cycle).
+#' @param irrigationEfficiency Numeric (0–1). Fraction of applied water that
+#'   effectively reaches the root zone.  Default \code{0.9} (90\%, typical
+#'   for drip irrigation).  The model computes the net soil-water deficit and
+#'   divides it by this value to obtain the \emph{gross} volume the farmer
+#'   must apply; the \code{irrigation} column in the output reports this
+#'   gross amount, while the soil water balance uses only the net fraction
+#'   (\code{gross * efficiency}).  Set to \code{1} to disable the
+#'   efficiency correction (e.g. for sprinkler or furrow irrigation where
+#'   efficiency is accounted for elsewhere).
+#' @param fullOut Logical. If \code{FALSE} (default), the function returns
+#'   the key agronomic outputs (\code{stage}, \code{swc}, \code{yield},
+#'   \code{brix}, \code{irrigation}, \code{p}) plus site/date identifiers.
+#'   If \code{TRUE}, all internal state variables are included.
+#' @param irrigationOverride A \code{data.frame} (or \code{NULL}) that lets
+#'   the user manually override the model's automatic irrigation decision for
+#'   specific dates. Must contain columns \code{date} (class \code{Date})
+#'   and \code{action} (\code{"skip"} or \code{"applied"}). An optional
+#'   \code{mm} column specifies the volume when \code{action = "applied"}.
+#'   \describe{
+#'     \item{\code{"skip"}}{Forces \code{irrigation = 0} on that date, even
+#'       if the model would have irrigated.}
+#'     \item{\code{"applied"}}{Forces \code{irrigation = mm} on that date,
+#'       even if the model would not have irrigated.}
+#'   }
+#'   Default \code{NULL} (no overrides).
+#'
+#' @details
+#' On each simulated day the model: (1) updates the two-layer soil-water
+#' balance; (2) computes the water-stress coefficient (\code{ws}) from the
+#' fraction of transpirable soil water (FTSW); (3) decides whether to
+#' irrigate — irrigation is applied when \code{ws < wsLevel} for the current
+#' phase, at least \code{turnMin} days have elapsed since the last event,
+#' \code{cycleCompletion < irrigationStopCycle}, and the crop is in an active
+#' phenological phase (\code{phenoCode > 0}); (4) applies
+#' \code{irrigationEfficiency} so that the gross applied volume equals
+#' \code{net deficit / efficiency} while only the net fraction enters the
+#' soil; (5) computes biomass accumulation, fruit growth, and Brix dynamics.
+#'
+#' Any \code{irrigationOverride} entries are applied after the automatic
+#' decision and before the water-balance update, so they correctly propagate
+#' to soil moisture in subsequent days.
+#'
+#' The function prints \code{"CUMBA running in deficit irrigation mode"} in
+#' blue (via \pkg{crayon}) when called.
+#'
+#' @return A \code{data.frame} of daily outputs. When \code{fullOut = FALSE}
+#'   (default) the columns are: \code{site}, \code{year}, \code{doy},
+#'   \code{p} (precipitation, mm), \code{irrigation} (mm),
+#'   \code{stage} (phenological stage label), \code{swc} (soil water
+#'   content, \%), \code{yield} (fruit fresh weight, t/ha), \code{brix}
+#'   (degrees Brix). When \code{fullOut = TRUE}, all internal state variables
+#'   are included.
+#'
+#' @seealso \code{\link{cumba}} for the experiment-mode runner that requires
+#'   an observed irrigation schedule; \code{\link{cumbaParameters}} for the
+#'   default parameter set.
+#'
+#' @examples
 #' weather <- data.frame(
 #'   Site = "TestSite",
-#'   Tx = c(30, 32, 31),
-#'   Tn = c(20, 21, 19),
-#'   P = c(0, 5, 2),
+#'   Tx   = c(30, 32, 31),
+#'   Tn   = c(20, 21, 19),
+#'   P    = c(0, 5, 2),
 #'   DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
-#'   Lat = 40
+#'   Lat  = 40
 #' )
+#' param <- cumbaParameters()
 #'
-#' # Minimal parameters: use default package data
-#' params <- lapply(cumbaParameters, function(p) p)  # copy default parameters
+#' # Default strategy: irrigate at ws < 0.5, minimum 2 days between events
+#' \dontrun{
+#' result <- cumba_scenario(weather, param)
+#' }
 #'
-#' # Run the model in automatic irrigation (scenario) mode
-#' # result <- cumba_scenario(
-#' #   weather,
-#' #   params,
-#' #   estimateRad = TRUE,
-#' #   estimateET0 = TRUE,
-#' #   waterStressLevel = 0.5,
-#' #   minimumTurn = 4
-#' # )
+#' # Custom strategy: stricter thresholds, cut off irrigation at 80% cycle
+#' \dontrun{
+#' result <- cumba_scenario(
+#'   weather,
+#'   param,
+#'   transplantingDOY    = 120,
+#'   irrigationStrategy  = list(
+#'     vegetative   = list(wsLevel = 0.5, turnMin = 3),
+#'     reproductive = list(wsLevel = 0.4, turnMin = 2),
+#'     ripening     = list(wsLevel = 0.6, turnMin = 4)
+#'   ),
+#'   irrigationStopCycle = 80
+#' )
+#' }
 #'
 #' @export
 cumba_scenario <- function(weather, param,
@@ -765,6 +873,8 @@ cumba_scenario <- function(weather, param,
                              vegetative = list(wsLevel = 0.5, turnMin = 2),
                              reproductive = list(wsLevel = 0.5, turnMin = 2),
                              ripening = list(wsLevel = 0.5, turnMin = 2)),
+                           irrigationStopCycle = 100,
+                           irrigationEfficiency = 0.9,
                            fullOut = FALSE,
                            irrigationOverride = NULL)
 {
@@ -854,21 +964,47 @@ cumba_scenario <- function(weather, param,
   sites<-unlist(as.vector(unique(weather[,SiteColID]))) 
   
   # Check if param list contains all required elements
-  required_param_elements <- c("Tbase", "Topt", "Tmax", "Theat", "Tcold", "FIntMax", "CycleLength", "TransplantingLag", "FloweringLag", "HalfIntGrowth", "HalfIntSenescence",  "InitialInt", "RUE", "KcIni", "KcMax", "RootIncrease", "RootDepthMax", "RootDepthInitial", "FieldCapacity", "WiltingPoint", "DepletionFraction", "FloweringSlope", "FloweringMax","k0","FruitWaterContentMin","FruitWaterContentMax","FruitWaterContentInc","FruitWaterContentDecreaseMax")
-  
+  required_param_elements <- c("Tbase", "Topt", "Tmax", "Theat", "Tcold",
+    "FIntMax", "CycleLength", "TransplantingLag", "FloweringLag",
+    "HalfIntGrowth", "HalfIntSenescence", "InitialInt", "RUE",
+    "KcIni", "KcMax", "RootIncrease", "RootDepthMax", "RootDepthInitial",
+    "FieldCapacity", "WiltingPoint", "DepletionFraction",
+    "SoilWaterInitial", "WaterStressSensitivity",
+    "FloweringSlope", "FloweringMax", "k0",
+    "FruitWaterContentMin", "FruitWaterContentMax",
+    "FruitWaterContentInc", "FruitWaterContentDecreaseMax")
+
   missing_param_elements <- setdiff(required_param_elements, names(param))
   if (length(missing_param_elements) > 0) {
-    stop(crayon::red(paste("Missing required elements in 'param':", paste(missing_param_elements, collapse = ", "))))
+    stop(crayon::red(paste("Missing required elements in 'param':",
+                           paste(missing_param_elements, collapse = ", "))))
   }
-  
-  
+
+  # Check for NA values in required weather columns
+  na_check_cols <- intersect(c("Tx", "Tn", "P",
+                                if (!estimateRad) "Rad" else "Lat",
+                                if (!estimateET0) "ET0" else NULL),
+                             colnames(weather))
+  for (col in na_check_cols) {
+    bad <- which(is.na(weather[[col]]))
+    if (length(bad) > 0) {
+      bad_dates <- tryCatch(as.character(weather$DATE[bad]), error = function(e) as.character(bad))
+      stop(crayon::red(sprintf(
+        "NA values found in weather column '%s' on %d day(s): %s%s",
+        col, length(bad),
+        paste(head(bad_dates, 5), collapse = ", "),
+        if (length(bad) > 5) " ..." else ""
+      )))
+    }
+  }
+
   #Check Plant cardinal temperature
   if (param$Tmax < param$Topt || param$Tmax < param$Tbase || param$Topt < param$Tbase) {
-    stop(crayon::red(paste("Alert: Please ensure that tMax is higher than tOpt, 
-                and/or tMax is higher than tBase, 
-                and/or tOpt is higher than tBase!\n"))) 
-  } 
-  
+    stop(crayon::red(paste("Alert: Please ensure that tMax is higher than tOpt,
+                and/or tMax is higher than tBase,
+                and/or tOpt is higher than tBase!\n")))
+  }
+
   #Check Soil hydrologic properties
   if (param$FieldCapacity < param$WiltingPoint)  {
     stop(crayon::red(paste("Alert: Please ensure that field capacity is higher than wilting point!\n")))
@@ -998,6 +1134,7 @@ cumba_scenario <- function(weather, param,
         rootState<-rootDepthInitial
         daysNoRain<-0
         ws<-1
+        waterStressFactor <- 1   # initialized; overwritten inside soilWaterModel each day
         wc1_y<-wiltingPoint+((fieldCapacity-wiltingPoint)*(soilWaterInitial/100))
         wc2_y<-wc1_y
         kcMaxAct<-0
@@ -1066,7 +1203,18 @@ cumba_scenario <- function(weather, param,
             }
             
             #run in scenario mode --> trigger irrigation based on conditions
-            if(phenoCode > 0 & ws < waterStressLevelSim & daysNoRain>=minimumTurnSim-1)
+            prev_idx <- doy - 1L
+            cycleCompletion_y <- if (length(outputs) > 0 &&
+                                     prev_idx >= 1L &&
+                                     prev_idx <= length(outputs) &&
+                                     !is.null(outputs[[prev_idx]]))
+              outputs[[prev_idx]][['cycleCompletion']]
+            else 0
+            if (is.null(cycleCompletion_y) || !is.finite(cycleCompletion_y))
+              cycleCompletion_y <- 0
+
+            if(phenoCode > 0 & ws < waterStressLevelSim & daysNoRain>=minimumTurnSim-1 &
+               cycleCompletion_y < irrigationStopCycle)
             {
               #compute soil water at field capacity
               pwc1 <- 3 * (fieldCapacity )*10
@@ -1076,7 +1224,9 @@ cumba_scenario <- function(weather, param,
               #actual soil water
               soilWActual <- wc1mm + wc2mm
 
-              irrigation <- soilWFC-soilWActual
+              # Gross applied water: net deficit / efficiency (e.g. 0.9 for drip).
+              # The soil water balance receives net = gross * efficiency.
+              irrigation <- (soilWFC - soilWActual) / irrigationEfficiency
             }else{
               irrigation<-0
             }
@@ -1219,7 +1369,7 @@ cumba_scenario <- function(weather, param,
             cycleFIntMax=prevOut[['fIntAct']]
           }
 
-          kc<- kcCompute(fIntAct,kcIni, kcMax,kcMaxAct,cycleFIntMax, cycleCompletion)
+          kc<- kcCompute(fIntAct,kcIni, kcMax,kcMaxAct,cycleFIntMax, cycleCompletion,fIntMax)
           etR<-etRCompute(et0, kc)
 
           ## Compute soil water content at 1 layer (3cm)----
@@ -1254,7 +1404,8 @@ cumba_scenario <- function(weather, param,
           
           #compute soil water dynamics
           soilModel <- soilWaterModel(doy, outputs, ftsw,
-                                      depletionFraction, irrigation, p,
+                                      depletionFraction,
+                                      irrigation * irrigationEfficiency, p,
                                       rootState, rootRate, rootDepthInitial, rootDepthMax, etR,
                                       waterStressFactor, fIntAct,
                                       et0,daysNoRain,fieldCapacity, wiltingPoint,
@@ -1458,8 +1609,7 @@ cumba_scenario <- function(weather, param,
   
   ## Print the execution time ---- 
   endTime <- Sys.time()
-  elapsedTime <- endTime - startTime
-  print(paste("Elapsed time:", elapsedTime))
+  
   rownames(dfOut) <- NULL
   
   #select a subset of variables if fullOut == F
@@ -1504,17 +1654,21 @@ coldStressLinear<-function(tN,tBase,tCold)
   return(coldStress)
 }
 
-  ## Real evapotranspiration ----
-        # kc (https://pismin.com/10.1007/s00271-011-0312-2) ----
+## Real evapotranspiration ----
+# kc (https://pismin.com/10.1007/s00271-011-0312-2) ----
 #' @keywords internal         
-kcCompute<-function(fInt,kcIni,kcMax,kcMaxAct, cycleFIntMax,cyclePerc)
+kcCompute<-function(fInt,kcIni,kcMax,kcMaxAct, cycleFIntMax,cyclePerc,fIntMax)
 {
   if (kcMaxAct==0) {
-    kc<- kcIni + (kcMax - kcIni) * fInt
+    kc<- kcIni + (kcMax - kcIni) * fInt/fIntMax
   }
   else {
+  
   kcFinal<- (kcIni+kcMaxAct)*0.5
-  cyclePercSen<- (cycleFIntMax-fInt )/(cycleFIntMax-.5)
+  
+  minFint <- cycleFIntMax/2
+  
+  cyclePercSen<- (cycleFIntMax-fInt )/(cycleFIntMax-minFint)
   kc<- kcFinal+(kcMaxAct-kcFinal) *(1- cyclePercSen)
   
   if(kc<kcFinal)kc<-kcFinal
@@ -1947,10 +2101,6 @@ BRIX_model<-function(k0,dm_rate,dm_state,latitude,doy,carbonSugar_y,
     if (fruitWaterContentPot >= fruitWaterContentMax * .99 &&
         is.finite(brixAct) && brixAct > 0 &&
         runif(1) < 0.05) {  # campionamento al 5% per non sommergere log
-      cat(sprintf("[BRIX] doy=%d cycleC=%.1f%% fwcPot=%.3f fwcMax=%.3f carbonSugar=%.4f fwAct=%.2f -> brixAct=%.3f\n",
-                  doy, cycleCompletion,
-                  fruitWaterContentPot, fruitWaterContentMax,
-                  carbonSugarState, fruitFreshWeightAct, brixAct))
     }
   }
   else
@@ -2137,24 +2287,8 @@ photoperiod <- function(doy, latitude) {
     }
   }
   # Calculate the hour angle
-  omega <- acos(cos_omega)
-  # Convert to photoperiod in hours
-  photoperiod_hours <- (2 * omega) * (12 / pi)  # converting radians to hours
-  
+    omega <- acos(cos_omega)
+  # Photoperiod in hours
+  photoperiod_hours <- (2 * omega * (180 / pi)) / 15
   return(photoperiod_hours)
-}
-
-
-walk.through <- function() {
-  tb <- unlist(.Traceback)
-  if(is.null(tb)) stop("no traceback to use for debugging")
-  assign("debug.fun.list", matrix(unlist(strsplit(tb, "\\(")), nrow=2)[1,], envir=.GlobalEnv)
-  lapply(debug.fun.list, function(x) debug(get(x)))
-  print(paste("Now debugging functions:", paste(debug.fun.list, collapse=",")))
-}
-
-unwalk.through <- function() {
-  lapply(debug.fun.list, function(x) undebug(get(as.character(x))))
-  print(paste("Now undebugging functions:", paste(debug.fun.list, collapse=",")))
-  rm(list="debug.fun.list", envir=.GlobalEnv)
 }

@@ -2,64 +2,170 @@
 % Please edit documentation in R/Main.R
 \name{cumba_scenario}
 \alias{cumba_scenario}
-\title{the CUMBA model}
+\title{CUMBA model — automatic irrigation scenario runner}
 \usage{
 cumba_scenario(
   weather,
   param,
-  estimateRad = T,
-  estimateET0 = T,
+  estimateRad = TRUE,
+  estimateET0 = TRUE,
   transplantingDOY = 120,
-  waterStressLevel = 0.5,
-  minimumTurn = 4,
-  fullOut = F
+  irrigationStrategy = list(vegetative = list(wsLevel = 0.5, turnMin = 2), reproductive =
+    list(wsLevel = 0.5, turnMin = 2), ripening = list(wsLevel = 0.5, turnMin = 2)),
+  irrigationStopCycle = 100,
+  irrigationEfficiency = 0.9,
+  fullOut = FALSE,
+  irrigationOverride = NULL
 )
 }
 \arguments{
-\item{weather}{a dataframe with weather data which must have the following columns......}
+\item{weather}{A \code{data.frame} (or tibble) of daily weather by site.
+See \emph{Required weather columns} above.}
 
-\item{param}{A named list of model parameters, where each element is a list with fields 'value', 'min', 'max', and 'description'}
+\item{param}{Model parameters. Either a \emph{named list} where each
+element is itself a list with fields \code{value}, \code{min},
+\code{max}, \code{description} (as returned by \code{\link{cumbaParameters}}),
+or a tibble/data.frame of numeric parameter values already unpacked.
+See \code{\link{cumba}} for the full list of required parameter names.}
 
-\item{estimateRad}{a boolean value to estimate solar radiation based on temperature using Hargreaves model. Default to 'true' (implying that the column Lat is present in weather df) if 'false' the 'weather' df must have the Rad column}
+\item{estimateRad}{Logical. If \code{TRUE} (default), solar radiation is
+estimated from temperature (Hargreaves); \code{Lat} must be in
+\code{weather}. If \code{FALSE}, \code{weather} must include \code{Rad}.}
 
-\item{estimateET0}{a boolean value to estimate reference evapotranspiration based on temperature using Hargreaves model. Default to 'true'}
+\item{estimateET0}{Logical. If \code{TRUE} (default), ET0 is estimated
+from temperature (Hargreaves). If \code{FALSE}, \code{weather} must
+include \code{ET0}.}
 
-\item{waterStressLevel}{a float corresponding to the threshold of water stress to trigger automatic irrigation. Default to .5, it is needed only if deficitIrrigation is 'true'.}
+\item{transplantingDOY}{Integer. Day of year (1–365) of transplanting.
+The model starts accumulating GDD and running the water balance from
+this day. Default \code{120} (approx. 30 April).}
 
-\item{minimumTurn}{an integer corresponding to the minimum number of days elapsed from the previous irrigation event. Default to 4, it is needed only if deficitIrrigation is 'true'.}
+\item{irrigationStrategy}{A named list with three phenological phases —
+\code{vegetative}, \code{reproductive}, \code{ripening} — each
+containing:
+\describe{
+  \item{\code{wsLevel}}{Numeric (0–1). Fraction of transpirable soil
+    water below which irrigation is triggered (water-stress threshold).}
+  \item{\code{turnMin}}{Integer. Minimum number of days that must have
+    elapsed since the last irrigation event before a new one is allowed.}
+}
+Default: all phases use \code{wsLevel = 0.5} and \code{turnMin = 2}.}
 
-\item{fullOut}{boolean, if FALSE main output variables are saved (default), if TRUE all variables are saved}
+\item{irrigationStopCycle}{Numeric (0–100). Cycle-completion percentage
+beyond which automatic irrigation is suppressed regardless of soil-water
+status. Useful to implement a cut-off irrigation strategy near harvest.
+Default \code{100} (no cut-off; irrigation runs until the end of the
+cycle).}
 
-\item{deficitIrrigation}{a boolean value to estimate irrigation requirements. Default to 'false', implying that the irrigation_df is provided.}
+\item{irrigationEfficiency}{Numeric (0–1). Fraction of applied water that
+effectively reaches the root zone.  Default \code{0.9} (90\%, typical
+for drip irrigation).  The model computes the net soil-water deficit and
+divides it by this value to obtain the \emph{gross} volume the farmer
+must apply; the \code{irrigation} column in the output reports this
+gross amount, while the soil water balance uses only the net fraction
+(\code{gross * efficiency}).  Set to \code{1} to disable the
+efficiency correction (e.g. for sprinkler or furrow irrigation where
+efficiency is accounted for elsewhere).}
+
+\item{fullOut}{Logical. If \code{FALSE} (default), the function returns
+the key agronomic outputs (\code{stage}, \code{swc}, \code{yield},
+\code{brix}, \code{irrigation}, \code{p}) plus site/date identifiers.
+If \code{TRUE}, all internal state variables are included.}
+
+\item{irrigationOverride}{A \code{data.frame} (or \code{NULL}) that lets
+the user manually override the model's automatic irrigation decision for
+specific dates. Must contain columns \code{date} (class \code{Date})
+and \code{action} (\code{"skip"} or \code{"applied"}). An optional
+\code{mm} column specifies the volume when \code{action = "applied"}.
+\describe{
+  \item{\code{"skip"}}{Forces \code{irrigation = 0} on that date, even
+    if the model would have irrigated.}
+  \item{\code{"applied"}}{Forces \code{irrigation = mm} on that date,
+    even if the model would not have irrigated.}
+}
+Default \code{NULL} (no overrides).}
 }
 \value{
-a dataframe containing the weatherDf plus the daily outputs of the cumba model
+A \code{data.frame} of daily outputs. When \code{fullOut = FALSE}
+  (default) the columns are: \code{site}, \code{year}, \code{doy},
+  \code{p} (precipitation, mm), \code{irrigation} (mm),
+  \code{stage} (phenological stage label), \code{swc} (soil water
+  content, \%), \code{yield} (fruit fresh weight, t/ha), \code{brix}
+  (degrees Brix). When \code{fullOut = TRUE}, all internal state variables
+  are included.
 }
 \description{
-It is a daily time step simulation model which computes the yield and brix degree of a tomato crop as a function of weather data and irrigation options.
+Runs the daily time-step CUMBA simulation in \emph{scenario} (automatic
+irrigation) mode.  Unlike \code{\link{cumba}}, which requires an observed
+irrigation schedule, \code{cumba_scenario} computes irrigation
+autonomously based on soil-water status, phenological stage, and
+user-defined stress thresholds.  This is the function used by the CUMBA
+Shiny app for decision support and what-if analysis.
 }
+\details{
+On each simulated day the model: (1) updates the two-layer soil-water
+balance; (2) computes the water-stress coefficient (\code{ws}) from the
+fraction of transpirable soil water (FTSW); (3) decides whether to
+irrigate — irrigation is applied when \code{ws < wsLevel} for the current
+phase, at least \code{turnMin} days have elapsed since the last event,
+\code{cycleCompletion < irrigationStopCycle}, and the crop is in an active
+phenological phase (\code{phenoCode > 0}); (4) applies
+\code{irrigationEfficiency} so that the gross applied volume equals
+\code{net deficit / efficiency} while only the net fraction enters the
+soil; (5) computes biomass accumulation, fruit growth, and Brix dynamics.
+
+Any \code{irrigationOverride} entries are applied after the automatic
+decision and before the water-balance update, so they correctly propagate
+to soil moisture in subsequent days.
+
+The function prints \code{"CUMBA running in deficit irrigation mode"} in
+blue (via \pkg{crayon}) when called.
+}
+\section{Required weather columns}{
+
+\code{weather} must contain \code{Site}, \code{Tx}, \code{Tn}, \code{P},
+\code{DATE}. Additionally:
+\itemize{
+  \item if \code{estimateRad = TRUE} (default), \code{Lat} is required;
+  \item if \code{estimateRad = FALSE}, \code{Rad} must be present;
+  \item if \code{estimateET0 = FALSE}, \code{ET0} must be present.
+}
+}
+
 \examples{
-#' # Example weather dataframe
 weather <- data.frame(
   Site = "TestSite",
-  Tx = c(30, 32, 31),
-  Tn = c(20, 21, 19),
-  P = c(0, 5, 2),
+  Tx   = c(30, 32, 31),
+  Tn   = c(20, 21, 19),
+  P    = c(0, 5, 2),
   DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
-  Lat = 40
+  Lat  = 40
 )
+param <- cumbaParameters()
 
-# Minimal parameters: use default package data
-params <- lapply(cumbaParameters, function(p) p)  # copy default parameters
+# Default strategy: irrigate at ws < 0.5, minimum 2 days between events
+\dontrun{
+result <- cumba_scenario(weather, param)
+}
 
-# Run the model in automatic irrigation (scenario) mode
-# result <- cumba_scenario(
-#   weather,
-#   params,
-#   estimateRad = TRUE,
-#   estimateET0 = TRUE,
-#   waterStressLevel = 0.5,
-#   minimumTurn = 4
-# )
+# Custom strategy: stricter thresholds, cut off irrigation at 80\% cycle
+\dontrun{
+result <- cumba_scenario(
+  weather,
+  param,
+  transplantingDOY    = 120,
+  irrigationStrategy  = list(
+    vegetative   = list(wsLevel = 0.5, turnMin = 3),
+    reproductive = list(wsLevel = 0.4, turnMin = 2),
+    ripening     = list(wsLevel = 0.6, turnMin = 4)
+  ),
+  irrigationStopCycle = 80
+)
+}
 
+}
+\seealso{
+\code{\link{cumba}} for the experiment-mode runner that requires
+  an observed irrigation schedule; \code{\link{cumbaParameters}} for the
+  default parameter set.
 }
