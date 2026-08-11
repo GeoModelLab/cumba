@@ -214,7 +214,7 @@ fetch_soil_soilgrids <- function(lon, lat, timeout_s = 20L) {
                       "&lat=", format(lat, nsmall=5L, scientific=FALSE),
                       qs)
     httr2::req_timeout(req, timeout_s) |>
-      httr2::req_user_agent("CUMBA-Shiny (+https://github.com/tomatoModelling/cumba_R_package)") |>
+      httr2::req_user_agent("CUMBA-Shiny (+https://github.com/GeoModelLab/cumba)") |>
       httr2::req_error(is_error = function(r) FALSE)
   }
 
@@ -228,7 +228,7 @@ fetch_soil_soilgrids <- function(lon, lat, timeout_s = 20L) {
                   "&value=mean")
     resp <- httr2::request(url) |>
       httr2::req_timeout(timeout_s) |>
-      httr2::req_user_agent("CUMBA-Shiny (+https://github.com/tomatoModelling/cumba_R_package)") |>
+      httr2::req_user_agent("CUMBA-Shiny (+https://github.com/GeoModelLab/cumba)") |>
       httr2::req_error(is_error = function(r) FALSE) |>
       httr2::req_perform()
     if (httr2::resp_status(resp) >= 400) {
@@ -709,7 +709,7 @@ om_to_cumba <- function(om) {
 # "San Severo, Foggia, Apulia". Usa Nominatim (OpenStreetMap), gratuito ma
 # con rate limit 1 req/s: chiamiamo solo dopo un clic. In caso di errore
 # o rete assente ritorna "" (la UI cade sul fallback "lat/lon").
-.NOMINATIM_USER_AGENT <- "CUMBA-Shiny (https://github.com/tomatoModelling/cumba_R_package)"
+.NOMINATIM_USER_AGENT <- "CUMBA-Shiny (https://github.com/GeoModelLab/cumba)"
 
 reverse_geocode_nominatim <- function(lat, lon, lang = "it",
                                       timeout = 10) {
@@ -823,7 +823,7 @@ reverse_geocode_nominatim <- function(lat, lon, lang = "it",
                     "meta-llama/llama-3.1-8b-instruct:free"),
     key_env     = "OPENROUTER_API_KEY",
     extra_headers = function(url) list(
-      "HTTP-Referer" = "https://github.com/tomatoModelling/cumba_R_package",
+      "HTTP-Referer" = "https://github.com/GeoModelLab/cumba",
       "X-Title"      = "CUMBA Shiny"
     )
   )

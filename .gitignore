@@ -10,4 +10,9 @@ llm_key.txt
 shinyApp/gemini_key.txt
 gemini_key.txt
 .Renviron
-manuscript
+manuscript/
+testFiles/
+figures/
+*.bak
+cumba_SoftwareX_v*.docx
+cumba_v0.docx

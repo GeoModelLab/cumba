@@ -1,6 +1,6 @@
 # pkgdown configuration for cumba
 # Build the site with: pkgdown::build_site()
-url: https://tomatoModelling.github.io/cumba_R_package/
+url: https://GeoModelLab.github.io/cumba/
 
 template:
   bootstrap: 5

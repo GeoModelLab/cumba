@@ -17,8 +17,8 @@ Description: A daily time-step crop model for processing tomato that simulates
     deficit-irrigation scenario mode, with irrigation triggered automatically
     on phase-specific water-stress thresholds.
 License: MIT + file LICENSE
-URL: https://github.com/tomatoModelling/cumba_R_package
-BugReports: https://github.com/tomatoModelling/cumba_R_package/issues
+URL: https://github.com/GeoModelLab/cumba
+BugReports: https://github.com/GeoModelLab/cumba/issues
 RoxygenNote: 7.3.3
 Encoding: UTF-8
 Imports:

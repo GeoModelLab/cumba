@@ -1286,11 +1286,9 @@ function(input, output, session) {
                 marker = list(color = "#6a1b9a", size = 14,
                               symbol = "diamond",
                               line = list(color = "#fff", width = 2))) |>
-      layout(title = list(text = "<b>🍅 Yield (t/ha)</b>",
-                           font = list(size = 12, color = "#6a1b9a")),
-             paper_bgcolor = "#ffffff", plot_bgcolor = "#ffffff",
+      layout(paper_bgcolor = "#ffffff", plot_bgcolor = "#ffffff",
              showlegend = FALSE,
-             margin = list(l = 30, r = 5, t = 30, b = 20),
+             margin = list(l = 30, r = 5, t = 10, b = 5),
              yaxis = list(zeroline = FALSE, gridcolor = "#eef0f2"),
              xaxis = list(showticklabels = FALSE))
     p_brix <- plot_ly() |>
@@ -1303,14 +1301,25 @@ function(input, output, session) {
                 marker = list(color = "#c62828", size = 14,
                               symbol = "diamond",
                               line = list(color = "#fff", width = 2))) |>
-      layout(title = list(text = "<b>🍯 Brix (°)</b>",
-                           font = list(size = 12, color = "#c62828")),
-             paper_bgcolor = "#ffffff", plot_bgcolor = "#ffffff",
+      layout(paper_bgcolor = "#ffffff", plot_bgcolor = "#ffffff",
              showlegend = FALSE,
-             margin = list(l = 30, r = 5, t = 30, b = 20),
+             margin = list(l = 30, r = 5, t = 10, b = 5),
              yaxis = list(zeroline = FALSE, gridcolor = "#eef0f2"),
              xaxis = list(showticklabels = FALSE))
-    subplot(p_yield, p_brix, nrows = 2, margin = 0.08, titleY = TRUE) |>
+    subplot(p_yield, p_brix, nrows = 2, margin = 0.1, titleY = TRUE) |>
+      layout(
+        margin = list(t = 30),
+        annotations = list(
+          list(x = 0.5, y = 0.97, text = "<b>\U0001f345 Yield (t/ha)</b>",
+               xref = "paper", yref = "paper", showarrow = FALSE,
+               font = list(size = 12, color = "#6a1b9a"),
+               xanchor = "center", yanchor = "top"),
+          list(x = 0.5, y = 0.44, text = "<b>\U0001f36f Brix (°)</b>",
+               xref = "paper", yref = "paper", showarrow = FALSE,
+               font = list(size = 12, color = "#c62828"),
+               xanchor = "center", yanchor = "top")
+        )
+      ) |>
       config(displayModeBar = FALSE)
   })
 

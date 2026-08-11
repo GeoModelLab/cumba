@@ -6,7 +6,7 @@
 # COSA FA QUESTO SCRIPT (in ordine):
 #   1. Installa (se mancanti) i pacchetti `rsconnect` e `remotes`.
 #   2. Installa il package `cumba` dal repo GitHub
-#      tomatoModelling/cumba_R_package -> serve perche' shinyapps.io
+#      GeoModelLab/cumba -> serve perche' shinyapps.io
 #      usera' la versione installata (non e' un pacchetto su CRAN).
 #   3. Configura il tuo account shinyapps.io leggendo TOKEN/SECRET dalle
 #      variabili d'ambiente SHINYAPPS_TOKEN, SHINYAPPS_SECRET, SHINYAPPS_NAME.
@@ -80,7 +80,7 @@ if (is.na(remote_type) || remote_type != "github" ||
     is.na(remote_user) || !nzchar(remote_user)) {
   stop("ERRORE: cumba non e' installato da GitHub correttamente. ",
        "remotes::install_github() ha fallito o non ha scritto i metadati Remote*. ",
-       "Controlla che il repo tomatoModelling/cumba_R_package sia accessibile e ",
+       "Controlla che il repo GeoModelLab/cumba sia accessibile e ",
        "che remotes/devtools siano aggiornati: ",
        "install.packages(c('remotes', 'rsconnect'))")
 }

@@ -98,7 +98,7 @@ source("deploy/deploy_to_shinyapps.R")
 Lo script:
 
 1. Installa `rsconnect` e `remotes` (se mancanti).
-2. Installa `cumba` da GitHub (`tomatoModelling/cumba_R_package`).
+2. Installa `cumba` da GitHub (`GeoModelLab/cumba`).
 3. Configura l'account shinyapps.io leggendo le env vars.
 4. Esegue il pre-flight (lista dei pacchetti R che l'app userà).
 5. Carica `shinyApp/` su shinyapps.io. **Questa fase dura 5–10 minuti

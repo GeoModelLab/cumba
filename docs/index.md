@@ -1,0 +1,57 @@
+# cumba
+
+**CUMBA** (Carbon Use Model for yield and Brix Assessment) is a daily
+time-step crop model for **processing tomato**. Given daily weather and
+an irrigation schedule, it computes thermal time, phenology and root
+growth, a three-layer soil-water balance, carbon accumulation modulated
+by heat / cold / water stress, and finally predicts **fresh-fruit yield
+and Brix at harvest**.
+
+The package exposes two top-level entry points:
+
+- [`cumba_experiment()`](https://GeoModelLab.github.io/cumba/reference/cumba_experiment.md)
+  — run the model on observed experiments using a user-supplied
+  irrigation schedule (calibration mode).
+- [`cumba_scenario()`](https://GeoModelLab.github.io/cumba/reference/cumba_scenario.md)
+  — run the model in **deficit-irrigation scenario mode**, where
+  irrigation is automatically triggered on phase-specific water-stress
+  thresholds.
+
+## Installation
+
+``` r
+
+# install.packages("pak")
+pak::pak("GeoModelLab/cumba")
+```
+
+## A first run
+
+``` r
+
+library(cumba)
+
+data(tomatoFoggia)
+
+out <- cumba_experiment(
+  weather       = tomatoFoggia$weather,
+  param         = cumbaParameters,
+  irrigation_df = tomatoFoggia$irrigation,
+  estimateRad   = TRUE,
+  estimateET0   = TRUE,
+  fullOut       = FALSE
+)
+
+head(out)
+```
+
+## Documentation
+
+- [`vignette("cumba-getting-started")`](https://GeoModelLab.github.io/cumba/articles/cumba-getting-started.md)
+  — model overview and minimal example.
+- [`vignette("cumba-experiment")`](https://GeoModelLab.github.io/cumba/articles/cumba-experiment.md)
+  — running observed experiments.
+- [`vignette("cumba-scenario")`](https://GeoModelLab.github.io/cumba/articles/cumba-scenario.md)
+  — deficit-irrigation scenarios.
+- [`vignette("estimate_et0_rad")`](https://GeoModelLab.github.io/cumba/articles/estimate_et0_rad.md)
+  — ET0 / radiation calibration workflow.

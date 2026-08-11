@@ -22,7 +22,7 @@ The package exposes two top-level entry points:
 
 ```r
 # install.packages("pak")
-pak::pak("tomatoModelling/cumba_R_package")
+pak::pak("GeoModelLab/cumba")
 ```
 
 ## A first run
