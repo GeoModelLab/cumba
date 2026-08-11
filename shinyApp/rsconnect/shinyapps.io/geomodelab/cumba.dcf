@@ -1,0 +1,10 @@
+name: cumba
+title: CUMBA — pomodoro da industria
+username: geomodelab
+account: geomodelab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 
+bundleId: 
+url: https://geomodelab.shinyapps.io/cumba/
+version: 1
