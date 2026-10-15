@@ -17,3 +17,4 @@
 ^_pre_cran_backup$
 ^LICENSE\.md$
 ^cran-comments\.md$
+^CRAN-SUBMISSION$
