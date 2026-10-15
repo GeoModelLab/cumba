@@ -1,7 +1,7 @@
 .Rhistory
 .Rproj.user
 .RData
-inst/doc
+# inst/doc  # pre-built vignettes are committed so GitHub installs work
 # Secret / credenziali — non committare MAI
 shinyApp/openrouter_key.txt
 openrouter_key.txt
@@ -16,3 +16,7 @@ figures/
 *.bak
 cumba_SoftwareX_v*.docx
 cumba_v0.docx
+/doc/
+/Meta/
+
+_pre_cran_backup/

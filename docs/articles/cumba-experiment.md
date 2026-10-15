@@ -13,15 +13,17 @@ The companion function
 is meant for *what-if* deficit-irrigation studies, where irrigation is
 triggered automatically based on phase-specific water-stress thresholds.
 
-## Inputs
+## Required inputs
 
-[`cumba_experiment()`](https://GeoModelLab.github.io/cumba/reference/cumba_experiment.md)
-requires:
-
-- a daily `weather` table with `Site`, `Tx`, `Tn`, `P`, `DATE` and
-  either `Lat` (when `estimateRad = TRUE`) or `Rad`;
-- a parameter object `param` (the bundled `cumbaParameters` works);
-- an `irrigation_df` with `ID`, `Site`, `YEAR`, `DATE`, `WVOL`.
+| Argument | Description |
+|----|----|
+| `weather` | Daily data frame: `Site`, `Tx`, `Tn`, `P`, `DATE`, `Lat` (if `estimateRad = TRUE`) or `Rad` |
+| `param` | Named list-of-lists (e.g. `cumbaParameters`) or plain numeric data frame |
+| `irrigation_df` | Data frame with `ID`, `Site`, `YEAR`, `DATE`, `WVOL` (mm) |
+| `estimateRad` | `TRUE` → Hargreaves–Samani from `Lat`; `FALSE` → use `Rad` column |
+| `estimateET0` | `TRUE` → FAO-56 Penman–Monteith; `FALSE` → use `ET0` column |
+| `irrigationEfficiency` | Fraction of applied water reaching the root zone (default `0.9`) |
+| `fullOut` | `FALSE` → short output; `TRUE` → all internal state variables |
 
 ## A complete walkthrough on `tomatoFoggia`
 
@@ -32,27 +34,42 @@ library(dplyr)
 library(ggplot2)
 
 data(tomatoFoggia)
-
-weather       <- tomatoFoggia$weather
-irrigation_df <- tomatoFoggia$irrigation
-production    <- tomatoFoggia$production
+data(cumbaParameters)
 
 out <- cumba_experiment(
-  weather       = weather,
-  param         = cumbaParameters,
-  irrigation_df = irrigation_df,
-  estimateRad   = TRUE,
-  estimateET0   = TRUE,
-  fullOut       = FALSE
+  weather              = tomatoFoggia$weather,
+  param                = cumbaParameters,
+  irrigation_df        = tomatoFoggia$irrigation,
+  estimateRad          = TRUE,
+  estimateET0          = TRUE,
+  irrigationEfficiency = 0.9,
+  fullOut              = FALSE
 )
+#> CUMBA running in experiment mode 
+#>  🍅 running experiment  6  in site  Foggia  and year  2005 🍅 running experiment  12  in site  Foggia  and year  2006 🍅 running experiment  14  in site  Foggia  and year  2012 🍅 running experiment  18  in site  Foggia  and year  2013 🍅 running experiment  20  in site  Foggia  and year  2014 🍅 running experiment  22  in site  Foggia  and year  2015 🍅 running experiment  24  in site  Foggia  and year  2016 🍅 running experiment  28  in site  Foggia  and year  2017 🍅 running experiment  32  in site  Foggia  and year  2018
 
 head(out)
+#>     site year experiment doy p irrigation              stage      swc yield
+#> 1 Foggia 2005          1 118 0       27.9 post-transplanting 30.00000     0
+#> 2 Foggia 2005          1 119 0        0.0 post-transplanting 29.78431     0
+#> 3 Foggia 2005          1 120 0        0.0 post-transplanting 29.60447     0
+#> 4 Foggia 2005          1 121 0        0.0 post-transplanting 29.40442     0
+#> 5 Foggia 2005          1 122 0        0.0 post-transplanting 29.28403     0
+#> 6 Foggia 2005          1 123 0        0.0 post-transplanting 29.23520     0
+#>   brix
+#> 1    0
+#> 2    0
+#> 3    0
+#> 4    0
+#> 5    0
+#> 6    0
 ```
 
-### Inspect simulated yield and Brix at harvest
+### Harvest-day values
 
-Each (site × year × experiment) ends when the cycle is complete. The
-last day of each experiment carries the harvest values:
+Each simulation ends when the crop cycle is complete. The last row for
+each (site × year × experiment) combination carries the harvest-day
+yield and Brix:
 
 ``` r
 
@@ -63,15 +80,31 @@ harvest <- out |>
   select(site, year, experiment, yield, brix)
 
 harvest
+#> # A tibble: 32 × 5
+#>    site    year experiment yield  brix
+#>    <chr>  <dbl>      <dbl> <dbl> <dbl>
+#>  1 Foggia  2005          1  36.6  5.71
+#>  2 Foggia  2005          2  72.0  5.13
+#>  3 Foggia  2005          3  93.8  4.90
+#>  4 Foggia  2005          4  56.6  5.08
+#>  5 Foggia  2005          5  61.5  4.95
+#>  6 Foggia  2005          6  82.4  4.91
+#>  7 Foggia  2006          7  30.0  5.66
+#>  8 Foggia  2006          8  54.3  5.03
+#>  9 Foggia  2006          9  67.6  5.11
+#> 10 Foggia  2006         10  46.3  5.01
+#> # ℹ 22 more rows
 ```
 
 ### Compare with observations
 
-`tomatoFoggia$production` provides observed `yield_ref` (t ha⁻¹) and
-`brix_ref` (°Brix). Yields in the short output are in q ha⁻¹, so divide
-by 10:
+`tomatoFoggia$production` contains observed `yield_ref` (t ha⁻¹) and
+`brix_ref` (°Brix). The `yield` column in the short output is in **q
+ha⁻¹**, so divide by 10 to convert to t ha⁻¹:
 
 ``` r
+
+production <- tomatoFoggia$production
 
 cmp <- harvest |>
   mutate(experiment = as.integer(experiment)) |>
@@ -79,47 +112,60 @@ cmp <- harvest |>
   mutate(yield_t = yield / 10)
 
 ggplot(cmp, aes(yield_ref, yield_t)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  labs(x = "Observed yield (t ha-1)",
-       y = "Simulated yield (t ha-1)",
-       title = "cumba_experiment - yield calibration check")
-
-ggplot(cmp, aes(brix_ref, brix)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  labs(x = "Observed Brix (°)",
-       y = "Simulated Brix (°)",
-       title = "cumba_experiment - Brix calibration check")
+  geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey50") +
+  geom_smooth(method = "lm", se = TRUE, colour = "#d6604d",
+              fill = "#f4a582", linewidth = 0.8) +
+  geom_point(size = 3, colour = "#2166ac", alpha = 0.85) +
+  labs(x = "Observed yield (t ha⁻¹)",
+       y = "Simulated yield (t ha⁻¹)",
+       title = "CUMBA — yield validation") +
+  theme_bw(base_size = 12)
 ```
 
-### Daily dynamics with `fullOut = TRUE`
+![](cumba-experiment_files/figure-html/compare-1.png)
 
-For diagnostics or calibration of internal variables, pass
-`fullOut = TRUE`:
+``` r
+
+
+ggplot(cmp, aes(brix_ref, brix)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey50") +
+  geom_smooth(method = "lm", se = TRUE, colour = "#4dac26",
+              fill = "#b8e186", linewidth = 0.8) +
+  geom_point(size = 3, colour = "#762a83", alpha = 0.85) +
+  labs(x = "Observed Brix (°Brix)",
+       y = "Simulated Brix (°Brix)",
+       title = "CUMBA — Brix validation") +
+  theme_bw(base_size = 12)
+```
+
+![](cumba-experiment_files/figure-html/compare-2.png)
+
+### Full output for diagnostics
+
+Pass `fullOut = TRUE` to access every internal state variable (GDD, Kc,
+soil water per layer, carbon pools, flowering state, etc.):
 
 ``` r
 
 out_full <- cumba_experiment(
-  weather       = weather,
-  param         = cumbaParameters,
-  irrigation_df = irrigation_df,
-  fullOut       = TRUE
+  weather              = tomatoFoggia$weather,
+  param                = cumbaParameters,
+  irrigation_df        = tomatoFoggia$irrigation,
+  estimateRad          = TRUE,
+  estimateET0          = TRUE,
+  fullOut              = TRUE
 )
 
 names(out_full)
 ```
 
-You then have access to `kc`, `etR`, `fIntAct`, `carbonStateAct`,
-`floweringStateIde`, `fruitWaterContentAct`, etc. for every day.
-
-## Tips
+## Notes
 
 - Cardinal temperatures in `param` must satisfy `Tmax > Topt > Tbase`
-  and the soil must satisfy `FieldCapacity > WiltingPoint`; otherwise
-  the function stops with a clear error.
-- If you supply `param` as a tibble of values (instead of a list of
-  lists), make sure all the required parameter names are present — the
-  function checks them at start-up.
+  and soil parameters must satisfy `FieldCapacity > WiltingPoint`;
+  otherwise the function stops with a descriptive error.
 - Run-time scales linearly with the number of (site × year × ID)
-  combinations: each is simulated day-by-day independently.
+  combinations: each is simulated independently day-by-day.
+- The `experiment` column in the output is a character; convert with
+  [`as.integer()`](https://rdrr.io/r/base/integer.html) before joining
+  with integer-keyed observation tables.

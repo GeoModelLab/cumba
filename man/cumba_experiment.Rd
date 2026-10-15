@@ -2,16 +2,16 @@
 % Please edit documentation in R/Main.R
 \name{cumba_experiment}
 \alias{cumba_experiment}
-\title{CUMBA model — experiment runner}
+\title{CUMBA model - experiment runner}
 \usage{
 cumba_experiment(
   weather,
   param,
-  estimateRad = T,
-  estimateET0 = T,
+  estimateRad = TRUE,
+  estimateET0 = TRUE,
   irrigation_df,
   irrigationEfficiency = 0.9,
-  fullOut = F
+  fullOut = FALSE
 )
 }
 \arguments{
@@ -52,7 +52,7 @@ evapotranspiration (ET0) is estimated from temperature (Hargreaves). If
 experiment/site, containing columns \code{ID}, \code{Site}, \code{YEAR},
 \code{DATE}, \code{WVOL}.}
 
-\item{irrigationEfficiency}{Numeric (0–1). Fraction of the observed applied
+\item{irrigationEfficiency}{Numeric (0-1). Fraction of the observed applied
 water (\code{WVOL}) that effectively reaches the root zone. Default
 \code{0.9} (90\%, typical for drip irrigation). The \code{irrigation}
 column in the output retains the original gross \code{WVOL} values; only
@@ -94,7 +94,7 @@ it is converted internally with \code{tibble::as_tibble(lapply(param, `[[`, "val
   \item if \code{estimateET0 = FALSE}, column \code{ET0} is required.
 }
 
-\strong{irrigation\_df}: must include columns \code{ID}, \code{Site},
+\code{irrigation_df}: must include columns \code{ID}, \code{Site},
 \code{YEAR}, \code{DATE}, \code{WVOL}.
 }
 

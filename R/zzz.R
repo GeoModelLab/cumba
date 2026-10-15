@@ -1,8 +1,10 @@
-.onLoad <- function(libname, pkgname) {
+.onAttach <- function(libname, pkgname) {
   packageStartupMessage("
                        |         
         ,---..   .,-.-.|---.,---.
         |    |   || | ||   |,---|
         `---'`---'` ' '`---'`---^
-🍅 Carbon Use Model for Brix Assessment 🍅")
+\U0001F345 Carbon Use Model for Brix Assessment \U0001F345")
 }
+
+utils::globalVariables(c("Site", "swc", "waterStressFactor"))

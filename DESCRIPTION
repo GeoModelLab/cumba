@@ -1,13 +1,19 @@
 Package: cumba
 Type: Package
 Title: Carbon Use Model for Yield and Brix Assessment in Processing Tomato
-Version: 0.0.1.0
+Version: 0.1.0
 Authors@R: c(
-    person("Federica", "Carucci",
-           role = "aut"),
     person("Simone", "Bregaglio",
-           email = "simone.bregaglio@gmail.com",
-           role = c("aut", "cre")))
+           email = "simoneugomaria.bregaglio@crea.gov.it",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-8381-2626")),
+    person("Federica", "Carucci", role = "aut"),
+    person("Luca", "Bechini", role = "aut",
+           comment = c(ORCID = "0000-0002-8152-6121")),
+    person("Marcella Michela", "Giuliani", role = "aut",
+           comment = c(ORCID = "0000-0001-9014-1955")),
+    person("Giuseppe", "Gatta", role = "aut",
+           comment = c(ORCID = "0000-0001-8381-7785")))
 Description: A daily time-step crop model for processing tomato that simulates
     thermal time, phenology, root growth, a three-layer soil-water balance,
     carbon accumulation modulated by heat, cold and water stress, and predicts
@@ -15,23 +21,22 @@ Description: A daily time-step crop model for processing tomato that simulates
     provided: 'cumba_experiment()' replays observed irrigation schedules
     (used for calibration), and 'cumba_scenario()' runs the model in
     deficit-irrigation scenario mode, with irrigation triggered automatically
-    on phase-specific water-stress thresholds.
-License: MIT + file LICENSE
+    on phase-specific soil-water-status thresholds.
+License: GPL-3
 URL: https://github.com/GeoModelLab/cumba
 BugReports: https://github.com/GeoModelLab/cumba/issues
 RoxygenNote: 7.3.3
 Encoding: UTF-8
 Imports:
-    data.table (>= 1.9.8),
     crayon,
+    dplyr,
+    lubridate,
     tibble
 Depends:
-    R (>= 3.5)
+    R (>= 4.1)
 LazyData: true
 Suggests:
     knitr,
     rmarkdown,
-    dplyr,
-    ggplot2,
-    lubridate
+    ggplot2
 VignetteBuilder: knitr

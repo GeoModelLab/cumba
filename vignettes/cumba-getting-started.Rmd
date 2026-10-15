@@ -31,9 +31,9 @@ The package exposes two top-level entry points:
 
 - `cumba_experiment()` — run the model on one or more **observed
   experiments**, using a user-supplied `irrigation_df`.
-- `cumba_scenario()`   — run the model in **deficit-irrigation scenario
-  mode**, where irrigation is automatically triggered when the simulated
-  water-stress falls below a phase-specific threshold.
+- `cumba_scenario()` — run the model in **deficit-irrigation scenario
+  mode**, where irrigation is triggered automatically when the simulated
+  water-stress index falls below a phase-specific threshold.
 
 ```{r setup}
 library(cumba)
@@ -44,6 +44,7 @@ library(cumba)
 A complete default parameter set is bundled with the package:
 
 ```{r params}
+data(cumbaParameters)
 str(cumbaParameters, max.level = 1)
 cumbaParameters$Tbase
 ```
@@ -72,13 +73,10 @@ The minimal call uses the default parameters and the bundled weather
 and irrigation data:
 
 ```{r run, eval = FALSE}
-weather       <- tomatoFoggia$weather
-irrigation_df <- tomatoFoggia$irrigation
-
 out <- cumba_experiment(
-  weather       = weather,
+  weather       = tomatoFoggia$weather,
   param         = cumbaParameters,
-  irrigation_df = irrigation_df,
+  irrigation_df = tomatoFoggia$irrigation,
   estimateRad   = TRUE,
   estimateET0   = TRUE,
   fullOut       = FALSE
@@ -90,18 +88,18 @@ head(out)
 The output is a `data.frame` with one row per (site, year, experiment,
 day-of-year). With `fullOut = FALSE` you get the *short* output:
 
-| column        | meaning                          |
-|---------------|----------------------------------|
-| `site`        | site name                        |
-| `year`        | calendar year                    |
-| `experiment`  | experiment id                    |
-| `doy`         | day of year                      |
-| `p`           | precipitation (mm)               |
-| `irrigation`  | irrigation (mm)                  |
-| `stage`       | phenological stage               |
-| `swc`         | soil water content (%)           |
-| `yield`       | fresh fruit yield (q ha-1)       |
-| `brix`        | actual Brix (°)                  |
+| column        | meaning                             |
+|---------------|-------------------------------------|
+| `site`        | site name                           |
+| `year`        | calendar year                       |
+| `experiment`  | experiment id (from irrigation_df)  |
+| `doy`         | day of year                         |
+| `p`           | precipitation (mm)                  |
+| `irrigation`  | irrigation applied (mm)             |
+| `stage`       | phenological stage label            |
+| `swc`         | soil water content (%)              |
+| `yield`       | fresh fruit yield (q ha⁻¹ in `cumba_experiment`; t ha⁻¹ in `cumba_scenario`) |
+| `brix`        | actual Brix (°Brix)                 |
 
 Set `fullOut = TRUE` to get every internal state variable (carbon,
 flowering, fruit-water content, Kc, stresses, etc.).
@@ -109,8 +107,8 @@ flowering, fruit-water content, Kc, stresses, etc.).
 # What's next?
 
 - See **Run an experiment** (`vignette("cumba-experiment")`) for a
-  complete experiment-mode walkthrough on `tomatoFoggia`.
+  complete experiment-mode walkthrough including calibration plots.
 - See **Run a scenario** (`vignette("cumba-scenario")`) for the
   deficit-irrigation mode.
-- See **Calibrate ET₀ and radiation**
+- See **Internal radiation and ET₀ estimators**
   (`vignette("estimate_et0_rad")`) for the radiation/ET₀ workflow.

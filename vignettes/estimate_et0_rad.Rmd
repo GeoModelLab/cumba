@@ -1,143 +1,131 @@
 ---
-title: "Calibration of ET0 and Radiation for Tomato Irrigation with cumba"
+title: "Internal radiation and ET₀ estimators"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Calibration of ET0 and Radiation for Tomato Irrigation with cumba}
+  %\VignetteIndexEntry{Internal radiation and ET₀ estimators}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, message=FALSE, warning=FALSE}
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 8, fig.height = 4,
+  message   = FALSE, warning = FALSE
+)
+```
+
+# Overview
+
+`cumba_scenario()` and `cumba_experiment()` can internally estimate two
+key driving variables from basic weather inputs:
+
+- **Solar radiation** — Hargreaves–Samani formula, requiring only daily
+  Tmax, Tmin, and site latitude (`estimateRad = TRUE`).
+- **Reference evapotranspiration ET₀** — a temperature-based
+  approximation of the FAO-56 Penman–Monteith equation, requiring Tmax,
+  Tmin, and latitude (`estimateET0 = TRUE`).
+
+This vignette runs the model in scenario mode over all years in
+`tomatoFoggia` and inspects the seasonal behaviour of both estimators.
+
+# Load data and run the model
+
+```{r run}
 library(cumba)
 library(dplyr)
 library(ggplot2)
 library(lubridate)
-library(readr)
-```
 
-# Read observed weather data
-Use the shipped CSV containing observed radiation (Rg) and ET0.
+data(tomatoFoggia)
+data(cumbaParameters)
 
-```{r}
-csv_file <- system.file(
-  "testFiles",
-  "weather_foggia.csv",
-  package = "cumba"
-)
-weather <- read_csv("..//testFiles/weather_foggia.csv") |> 
-  mutate(MDATE = as.Date(MDATE,format = '%m/%d/%Y')) |> 
-  rename(P = RAIN, Tx = TMAX, Tn = TMIN,DATE = MDATE) |> 
-  mutate(Lat=41,Site = 'Foggia',
-         Rg = as.numeric(Rg),ET0=as.numeric(ET0))
+weather_obs <- tomatoFoggia$weather
 
-glimpse(weather)
-```
-
-Expected columns:
-
-- DATE
-- Tx
-- Tn
-- P
-- Rg
-- ET0
-- Site
-- Lat
-
-# Run CUMBA with internal estimators
-```{r}
-
-weather_pkg <- 
+# Run over all site-years; fullOut = TRUE exposes radiation and et0 columns
 out <- cumba_scenario(
-  weather     = weather |> select(-c(Rg,ET0)),
-  param       = cumbaParameters,
-  estimateRad = TRUE,
-  estimateET0 = TRUE,
-  fullOut     = TRUE
+  weather          = weather_obs,
+  param            = cumbaParameters,
+  estimateRad      = TRUE,
+  estimateET0      = TRUE,
+  transplantingDOY = 120,
+  irrigationStrategy = list(
+    vegetative   = list(wsLevel = 0.5, turnMin = 4),
+    reproductive = list(wsLevel = 0.5, turnMin = 4),
+    ripening     = list(wsLevel = 0.5, turnMin = 4)
+  ),
+  fullOut = TRUE
 )
 
-sim <- out |>
-  select(year, doy, radiation, et0)
+sim <- out |> select(year, doy, radiation, et0)
+glimpse(sim)
 ```
 
-# Join observed and simulated
-```{r}
-obs <- weather |>
-  mutate(
-    DATE = as.Date(DATE,format = '%m/%d/%Y'),
-    year = year(DATE),
-    doy  = yday(DATE)
-  ) |>
-  select(year, doy, Rg, ET0)
+# Radiation estimates — seasonal dynamics
 
-cmp <- sim |>
-  inner_join(obs, by = c("year", "doy"))
-```
+The Hargreaves–Samani method approximates solar radiation from the
+daily temperature range, which correlates with cloud cover. The
+estimates track the expected bell-shaped seasonal pattern for a
+Mediterranean site at latitude ~41°N.
 
-# Radiation
-```{r}
-ggplot(cmp, aes(radiation, Rg)) +
-  geom_point(alpha=.35) +
-  geom_abline(slope=1, intercept=0, linetype=2) +
+```{r rad_season, fig.height = 5}
+ggplot(sim, aes(doy, radiation)) +
+  geom_line(colour = "#d6604d", linewidth = 0.8) +
+  facet_wrap(~year, ncol = 3) +
   labs(
-    x = "Estimated radiation",
-    y = "Observed radiation",
-    title = "Estimated vs observed radiation"
+    x     = "Day of year",
+    y     = "Radiation (MJ m⁻² d⁻¹)",
+    title = "Hargreaves–Samani radiation estimates"
   ) +
-  theme_bw()
+  theme_bw(base_size = 11) +
+  theme(
+    strip.background = element_rect(fill = "#f0f0f0"),
+    panel.grid.minor = element_blank()
+  )
 ```
 
-```{r}
-ggplot(cmp, aes(doy)) +
-  geom_line(aes(y = radiation, colour = "estimated")) +
-  geom_line(aes(y = Rg, colour = "observed")) +
-  facet_wrap(~year) +
+# ET₀ estimates — seasonal dynamics
+
+The temperature-based ET₀ follows the same seasonal trajectory as
+radiation, rising through summer and falling toward harvest. Values in
+the 4–9 mm d⁻¹ range are typical for Foggia in June–August.
+
+```{r et0_season, fig.height = 5}
+ggplot(sim, aes(doy, et0)) +
+  geom_area(fill = "#1b7837", alpha = 0.15) +
+  geom_line(colour = "#1b7837", linewidth = 0.8) +
+  facet_wrap(~year, ncol = 3) +
   labs(
-    x = "DOY",
-    y = "MJ m-2 d-1",
-    colour = NULL,
-    title = "Seasonal radiation dynamics"
+    x     = "Day of year",
+    y     = expression(ET[0]~~(mm~d^{-1})),
+    title = expression("FAO-56 Penman–Monteith"~~ET[0]~~"estimates")
   ) +
-  theme_bw()
+  theme_bw(base_size = 11) +
+  theme(
+    strip.background = element_rect(fill = "#f0f0f0"),
+    panel.grid.minor = element_blank()
+  )
 ```
 
-# ET0
-```{r}
-ggplot(cmp, aes(et0, ET0)) +
-  geom_point(alpha=.35) +
-  geom_abline(slope=1, intercept=0, linetype=2) +
-  labs(
-    x = "Estimated ET0",
-    y = "Observed ET0",
-    title = "Estimated vs observed ET0"
-  ) +
-  theme_bw()
-```
+# Summary statistics by year
 
-```{r}
-ggplot(cmp, aes(doy)) +
-  geom_line(aes(y = et0, colour = "estimated")) +
-  geom_line(aes(y = ET0, colour = "observed")) +
-  facet_wrap(~year) +
-  labs(
-    x = "DOY",
-    y = "mm d-1",
-    colour = NULL,
-    title = "Seasonal ET0 dynamics"
-  ) +
-  theme_bw()
-```
-
-# Performance metrics
-```{r}
-cmp |>
+```{r metrics}
+sim |>
+  group_by(year) |>
   summarise(
-    RMSE_rad = sqrt(mean((radiation - Rg)^2, na.rm = TRUE)),
-    Bias_rad = mean(radiation - Rg, na.rm = TRUE),
-    R2_rad   = cor(radiation, Rg, use = "complete.obs")^2,
-
-    RMSE_et0 = sqrt(mean((et0 - ET0)^2, na.rm = TRUE)),
-    Bias_et0 = mean(et0 - ET0, na.rm = TRUE),
-    R2_et0   = cor(et0, ET0, use = "complete.obs")^2
+    n_days           = n(),
+    mean_rad         = round(mean(radiation, na.rm = TRUE), 1),
+    max_rad          = round(max(radiation,  na.rm = TRUE), 1),
+    mean_et0         = round(mean(et0,       na.rm = TRUE), 1),
+    season_total_et0 = round(sum(et0,        na.rm = TRUE), 0)
+  ) |>
+  rename(
+    Year                        = year,
+    `Days simulated`            = n_days,
+    `Mean radiation (MJ m⁻² d⁻¹)` = mean_rad,
+    `Max radiation (MJ m⁻² d⁻¹)`  = max_rad,
+    `Mean ET₀ (mm d⁻¹)`                = mean_et0,
+    `Season total ET₀ (mm)`                      = season_total_et0
   )
 ```

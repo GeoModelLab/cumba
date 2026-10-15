@@ -8,7 +8,7 @@
 A list of four data frames:
 \describe{
   \item{\code{weather}}{Daily weather data with columns:
-    DATE (POSIXct), Tx (max temp, °C), Tn (min temp, °C),
+    DATE (POSIXct), Tx (max temp, degC), Tn (min temp, degC),
     P (precipitation, mm), Rad (radiation, MJ m-2 d-1),
     RHx (max RH, %), RHn (min RH, %), W (wind speed, m s-1),
     Date (Date), Site ("Foggia"), Lat (latitude, numeric).}
@@ -24,11 +24,11 @@ A list of four data frames:
 
   \item{\code{production}}{Production and quality data with columns:
     ID, yield_ref (t ha-1), yield_ref_sd (t ha-1),
-    brix_ref (°Brix), brix_ref_sd (°Brix).}
+    brix_ref (degBrix), brix_ref_sd (degBrix).}
 }
 }
 \source{
-Carucci et al. (2024) \url{https://doi.org/10.1016/j.dib.2024.110225}
+Carucci et al. (2024) \doi{10.1016/j.dib.2024.110225}
 }
 \usage{
 tomatoFoggia

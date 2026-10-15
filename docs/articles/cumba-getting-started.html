@@ -47,7 +47,7 @@
 </li>
       </ul>
 <ul class="navbar-nav">
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/tomatoModelling/cumba_R_package/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/GeoModelLab/cumba/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -63,7 +63,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Getting started with cumba</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tomatoModelling/cumba_R_package/blob/HEAD/vignettes/cumba-getting-started.Rmd" class="external-link"><code>vignettes/cumba-getting-started.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/GeoModelLab/cumba/blob/HEAD/vignettes/cumba-getting-started.Rmd" class="external-link"><code>vignettes/cumba-getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>cumba-getting-started.Rmd</code></div>
     </div>
 
@@ -91,18 +91,19 @@ computes:</p>
 <li>
 <code><a href="../reference/cumba_scenario.html">cumba_scenario()</a></code> — run the model in
 <strong>deficit-irrigation scenario mode</strong>, where irrigation is
-automatically triggered when the simulated water-stress falls below a
-phase-specific threshold.</li>
+triggered automatically when the simulated water-stress index falls
+below a phase-specific threshold.</li>
 </ul>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tomatoModelling/cumba_R_package" class="external-link">cumba</a></span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/GeoModelLab/cumba" class="external-link">cumba</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="default-parameters">Default parameters<a class="anchor" aria-label="anchor" href="#default-parameters"></a>
 </h2>
 <p>A complete default parameter set is bundled with the package:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">cumbaParameters</span>, max.level <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">cumbaParameters</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">cumbaParameters</span>, max.level <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="co">#&gt; List of 30</span></span>
 <span><span class="co">#&gt;  $ CycleLength                 :List of 4</span></span>
 <span><span class="co">#&gt;  $ DepletionFraction           :List of 4</span></span>
@@ -200,13 +201,10 @@ field trials in Foggia (Apulia, Italy):</p>
 <p>The minimal call uses the default parameters and the bundled weather
 and irrigation data:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">weather</span>       <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">weather</span></span>
-<span><span class="va">irrigation_df</span> <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">irrigation</span></span>
-<span></span>
-<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cumba_experiment.html">cumba_experiment</a></span><span class="op">(</span></span>
-<span>  weather       <span class="op">=</span> <span class="va">weather</span>,</span>
+<code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cumba_experiment.html">cumba_experiment</a></span><span class="op">(</span></span>
+<span>  weather       <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">weather</span>,</span>
 <span>  param         <span class="op">=</span> <span class="va">cumbaParameters</span>,</span>
-<span>  irrigation_df <span class="op">=</span> <span class="va">irrigation_df</span>,</span>
+<span>  irrigation_df <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">irrigation</span>,</span>
 <span>  estimateRad   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimateET0   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  fullOut       <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -217,6 +215,10 @@ and irrigation data:</p>
 experiment, day-of-year). With <code>fullOut = FALSE</code> you get the
 <em>short</em> output:</p>
 <table class="table">
+<colgroup>
+<col width="28%">
+<col width="71%">
+</colgroup>
 <thead><tr class="header">
 <th>column</th>
 <th>meaning</th>
@@ -232,7 +234,7 @@ experiment, day-of-year). With <code>fullOut = FALSE</code> you get the
 </tr>
 <tr class="odd">
 <td><code>experiment</code></td>
-<td>experiment id</td>
+<td>experiment id (from irrigation_df)</td>
 </tr>
 <tr class="even">
 <td><code>doy</code></td>
@@ -244,11 +246,11 @@ experiment, day-of-year). With <code>fullOut = FALSE</code> you get the
 </tr>
 <tr class="even">
 <td><code>irrigation</code></td>
-<td>irrigation (mm)</td>
+<td>irrigation applied (mm)</td>
 </tr>
 <tr class="odd">
 <td><code>stage</code></td>
-<td>phenological stage</td>
+<td>phenological stage label</td>
 </tr>
 <tr class="even">
 <td><code>swc</code></td>
@@ -256,11 +258,12 @@ experiment, day-of-year). With <code>fullOut = FALSE</code> you get the
 </tr>
 <tr class="odd">
 <td><code>yield</code></td>
-<td>fresh fruit yield (q ha-1)</td>
+<td>fresh fruit yield (q ha⁻¹ in <code>cumba_experiment</code>; t ha⁻¹
+in <code>cumba_scenario</code>)</td>
 </tr>
 <tr class="even">
 <td><code>brix</code></td>
-<td>actual Brix (°)</td>
+<td>actual Brix (°Brix)</td>
 </tr>
 </tbody>
 </table>
@@ -273,11 +276,11 @@ experiment, day-of-year). With <code>fullOut = FALSE</code> you get the
 <ul>
 <li>See <strong>Run an experiment</strong>
 (<code><a href="../articles/cumba-experiment.html">vignette("cumba-experiment")</a></code>) for a complete
-experiment-mode walkthrough on <code>tomatoFoggia</code>.</li>
+experiment-mode walkthrough including calibration plots.</li>
 <li>See <strong>Run a scenario</strong>
 (<code><a href="../articles/cumba-scenario.html">vignette("cumba-scenario")</a></code>) for the deficit-irrigation
 mode.</li>
-<li>See <strong>Calibrate ET₀ and radiation</strong>
+<li>See <strong>Internal radiation and ET₀ estimators</strong>
 (<code><a href="../articles/estimate_et0_rad.html">vignette("estimate_et0_rad")</a></code>) for the radiation/ET₀
 workflow.</li>
 </ul>

@@ -9,10 +9,10 @@ and Brix at harvest**.
 
 The package exposes two top-level entry points:
 
-- [`cumba_experiment()`](https://tomatoModelling.github.io/cumba_R_package/reference/cumba_experiment.md)
+- [`cumba_experiment()`](https://GeoModelLab.github.io/cumba/reference/cumba_experiment.md)
   — run the model on observed experiments using a user-supplied
   irrigation schedule (calibration mode).
-- [`cumba_scenario()`](https://tomatoModelling.github.io/cumba_R_package/reference/cumba_scenario.md)
+- [`cumba_scenario()`](https://GeoModelLab.github.io/cumba/reference/cumba_scenario.md)
   — run the model in **deficit-irrigation scenario mode**, where
   irrigation is automatically triggered on phase-specific water-stress
   thresholds.
@@ -22,7 +22,7 @@ The package exposes two top-level entry points:
 ``` r
 
 # install.packages("pak")
-pak::pak("tomatoModelling/cumba_R_package")
+pak::pak("GeoModelLab/cumba")
 ```
 
 ## A first run
@@ -47,13 +47,13 @@ head(out)
 
 ## Documentation
 
-- [`vignette("cumba-getting-started")`](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-getting-started.md)
+- [`vignette("cumba-getting-started")`](https://GeoModelLab.github.io/cumba/articles/cumba-getting-started.md)
   — model overview and minimal example.
-- [`vignette("cumba-experiment")`](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-experiment.md)
+- [`vignette("cumba-experiment")`](https://GeoModelLab.github.io/cumba/articles/cumba-experiment.md)
   — running observed experiments.
-- [`vignette("cumba-scenario")`](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-scenario.md)
+- [`vignette("cumba-scenario")`](https://GeoModelLab.github.io/cumba/articles/cumba-scenario.md)
   — deficit-irrigation scenarios.
-- [`vignette("estimate_et0_rad")`](https://tomatoModelling.github.io/cumba_R_package/articles/estimate_et0_rad.md)
+- [`vignette("estimate_et0_rad")`](https://GeoModelLab.github.io/cumba/articles/estimate_et0_rad.md)
   — ET0 / radiation calibration workflow.
 
 # Package index
@@ -62,18 +62,18 @@ head(out)
 
 Top-level functions to run the CUMBA daily simulation
 
-- [`cumba_experiment()`](https://tomatoModelling.github.io/cumba_R_package/reference/cumba_experiment.md)
+- [`cumba_experiment()`](https://GeoModelLab.github.io/cumba/reference/cumba_experiment.md)
   : CUMBA model — experiment runner
-- [`cumba_scenario()`](https://tomatoModelling.github.io/cumba_R_package/reference/cumba_scenario.md)
+- [`cumba_scenario()`](https://GeoModelLab.github.io/cumba/reference/cumba_scenario.md)
   : CUMBA model — automatic irrigation scenario runner
 
 ## Data
 
 Default parameters and example datasets
 
-- [`cumbaParameters`](https://tomatoModelling.github.io/cumba_R_package/reference/cumbaParameters.md)
+- [`cumbaParameters`](https://GeoModelLab.github.io/cumba/reference/cumbaParameters.md)
   : Model Parameters for Cumba
-- [`tomatoFoggia`](https://tomatoModelling.github.io/cumba_R_package/reference/tomatoFoggia.md)
+- [`tomatoFoggia`](https://GeoModelLab.github.io/cumba/reference/tomatoFoggia.md)
   : Tomato field trial data from Foggia (Italy)
 
 # Articles
@@ -81,10 +81,10 @@ Default parameters and example datasets
 ### Tutorials
 
 - [Getting started with
-  cumba](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-getting-started.md):
+  cumba](https://GeoModelLab.github.io/cumba/articles/cumba-getting-started.md):
 - [Run an experiment with
-  cumba_experiment()](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-experiment.md):
+  cumba_experiment()](https://GeoModelLab.github.io/cumba/articles/cumba-experiment.md):
 - [Run a deficit-irrigation scenario with
-  cumba_scenario()](https://tomatoModelling.github.io/cumba_R_package/articles/cumba-scenario.md):
-- [Calibration of ET0 and Radiation for Tomato Irrigation with
-  cumba](https://tomatoModelling.github.io/cumba_R_package/articles/estimate_et0_rad.md):
+  cumba_scenario()](https://GeoModelLab.github.io/cumba/articles/cumba-scenario.md):
+- [Internal radiation and ET₀
+  estimators](https://GeoModelLab.github.io/cumba/articles/estimate_et0_rad.md):

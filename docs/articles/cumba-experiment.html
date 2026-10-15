@@ -47,7 +47,7 @@
 </li>
       </ul>
 <ul class="navbar-nav">
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/tomatoModelling/cumba_R_package/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/GeoModelLab/cumba/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -63,7 +63,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Run an experiment with cumba_experiment()</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tomatoModelling/cumba_R_package/blob/HEAD/vignettes/cumba-experiment.Rmd" class="external-link"><code>vignettes/cumba-experiment.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/GeoModelLab/cumba/blob/HEAD/vignettes/cumba-experiment.Rmd" class="external-link"><code>vignettes/cumba-experiment.Rmd</code></a></small>
       <div class="d-none name"><code>cumba-experiment.Rmd</code></div>
     </div>
 
@@ -82,50 +82,105 @@ triggered automatically based on phase-specific water-stress
 thresholds.</p>
 </div>
 <div class="section level2">
-<h2 id="inputs">Inputs<a class="anchor" aria-label="anchor" href="#inputs"></a>
+<h2 id="required-inputs">Required inputs<a class="anchor" aria-label="anchor" href="#required-inputs"></a>
 </h2>
-<p><code><a href="../reference/cumba_experiment.html">cumba_experiment()</a></code> requires:</p>
-<ul>
-<li>a daily <code>weather</code> table with <code>Site</code>,
-<code>Tx</code>, <code>Tn</code>, <code>P</code>, <code>DATE</code> and
-either <code>Lat</code> (when <code>estimateRad = TRUE</code>) or
-<code>Rad</code>;</li>
-<li>a parameter object <code>param</code> (the bundled
-<code>cumbaParameters</code> works);</li>
-<li>an <code>irrigation_df</code> with <code>ID</code>,
-<code>Site</code>, <code>YEAR</code>, <code>DATE</code>,
-<code>WVOL</code>.</li>
-</ul>
+<table class="table">
+<colgroup>
+<col width="18%">
+<col width="81%">
+</colgroup>
+<thead><tr class="header">
+<th>Argument</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>weather</code></td>
+<td>Daily data frame: <code>Site</code>, <code>Tx</code>,
+<code>Tn</code>, <code>P</code>, <code>DATE</code>, <code>Lat</code> (if
+<code>estimateRad = TRUE</code>) or <code>Rad</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>param</code></td>
+<td>Named list-of-lists (e.g. <code>cumbaParameters</code>) or plain
+numeric data frame</td>
+</tr>
+<tr class="odd">
+<td><code>irrigation_df</code></td>
+<td>Data frame with <code>ID</code>, <code>Site</code>,
+<code>YEAR</code>, <code>DATE</code>, <code>WVOL</code> (mm)</td>
+</tr>
+<tr class="even">
+<td><code>estimateRad</code></td>
+<td>
+<code>TRUE</code> → Hargreaves–Samani from <code>Lat</code>;
+<code>FALSE</code> → use <code>Rad</code> column</td>
+</tr>
+<tr class="odd">
+<td><code>estimateET0</code></td>
+<td>
+<code>TRUE</code> → FAO-56 Penman–Monteith; <code>FALSE</code> → use
+<code>ET0</code> column</td>
+</tr>
+<tr class="even">
+<td><code>irrigationEfficiency</code></td>
+<td>Fraction of applied water reaching the root zone (default
+<code>0.9</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>fullOut</code></td>
+<td>
+<code>FALSE</code> → short output; <code>TRUE</code> → all internal
+state variables</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section level2">
 <h2 id="a-complete-walkthrough-on-tomatofoggia">A complete walkthrough on <code>tomatoFoggia</code><a class="anchor" aria-label="anchor" href="#a-complete-walkthrough-on-tomatofoggia"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tomatoModelling/cumba_R_package" class="external-link">cumba</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/GeoModelLab/cumba" class="external-link">cumba</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">tomatoFoggia</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">weather</span>       <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">weather</span></span>
-<span><span class="va">irrigation_df</span> <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">irrigation</span></span>
-<span><span class="va">production</span>    <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">production</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">cumbaParameters</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cumba_experiment.html">cumba_experiment</a></span><span class="op">(</span></span>
-<span>  weather       <span class="op">=</span> <span class="va">weather</span>,</span>
-<span>  param         <span class="op">=</span> <span class="va">cumbaParameters</span>,</span>
-<span>  irrigation_df <span class="op">=</span> <span class="va">irrigation_df</span>,</span>
-<span>  estimateRad   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  estimateET0   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  fullOut       <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  weather              <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">weather</span>,</span>
+<span>  param                <span class="op">=</span> <span class="va">cumbaParameters</span>,</span>
+<span>  irrigation_df        <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">irrigation</span>,</span>
+<span>  estimateRad          <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  estimateET0          <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  irrigationEfficiency <span class="op">=</span> <span class="fl">0.9</span>,</span>
+<span>  fullOut              <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">CUMBA running in experiment mode </span></span></span>
+<span><span class="co"><span style="color: #0000BB;">#&gt; </span><span style="color: #00BB00;"> 🍅 running experiment  6  in site  Foggia  and year  2005 🍅 running experiment  12  in site  Foggia  and year  2006 🍅 running experiment  14  in site  Foggia  and year  2012 🍅 running experiment  18  in site  Foggia  and year  2013 🍅 running experiment  20  in site  Foggia  and year  2014 🍅 running experiment  22  in site  Foggia  and year  2015 🍅 running experiment  24  in site  Foggia  and year  2016 🍅 running experiment  28  in site  Foggia  and year  2017 🍅 running experiment  32  in site  Foggia  and year  2018</span></span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     site year experiment doy p irrigation              stage      swc yield</span></span>
+<span><span class="co">#&gt; 1 Foggia 2005          1 118 0       27.9 post-transplanting 30.00000     0</span></span>
+<span><span class="co">#&gt; 2 Foggia 2005          1 119 0        0.0 post-transplanting 29.78431     0</span></span>
+<span><span class="co">#&gt; 3 Foggia 2005          1 120 0        0.0 post-transplanting 29.60447     0</span></span>
+<span><span class="co">#&gt; 4 Foggia 2005          1 121 0        0.0 post-transplanting 29.40442     0</span></span>
+<span><span class="co">#&gt; 5 Foggia 2005          1 122 0        0.0 post-transplanting 29.28403     0</span></span>
+<span><span class="co">#&gt; 6 Foggia 2005          1 123 0        0.0 post-transplanting 29.23520     0</span></span>
+<span><span class="co">#&gt;   brix</span></span>
+<span><span class="co">#&gt; 1    0</span></span>
+<span><span class="co">#&gt; 2    0</span></span>
+<span><span class="co">#&gt; 3    0</span></span>
+<span><span class="co">#&gt; 4    0</span></span>
+<span><span class="co">#&gt; 5    0</span></span>
+<span><span class="co">#&gt; 6    0</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="inspect-simulated-yield-and-brix-at-harvest">Inspect simulated yield and Brix at harvest<a class="anchor" aria-label="anchor" href="#inspect-simulated-yield-and-brix-at-harvest"></a>
+<h3 id="harvest-day-values">Harvest-day values<a class="anchor" aria-label="anchor" href="#harvest-day-values"></a>
 </h3>
-<p>Each (site × year × experiment) ends when the cycle is complete. The
-last day of each experiment carries the harvest values:</p>
+<p>Each simulation ends when the crop cycle is complete. The last row
+for each (site × year × experiment) combination carries the harvest-day
+yield and Brix:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">harvest</span> <span class="op">&lt;-</span> <span class="va">out</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">site</span>, <span class="va">year</span>, <span class="va">experiment</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -133,67 +188,92 @@ last day of each experiment carries the harvest values:</p>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">ungroup</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">site</span>, <span class="va">year</span>, <span class="va">experiment</span>, <span class="va">yield</span>, <span class="va">brix</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">harvest</span></span></code></pre></div>
+<span><span class="va">harvest</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 32 × 5</span></span></span>
+<span><span class="co">#&gt;    site    year experiment yield  brix</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> Foggia  <span style="text-decoration: underline;">2</span>005          1  36.6  5.71</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> Foggia  <span style="text-decoration: underline;">2</span>005          2  72.0  5.13</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> Foggia  <span style="text-decoration: underline;">2</span>005          3  93.8  4.90</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> Foggia  <span style="text-decoration: underline;">2</span>005          4  56.6  5.08</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> Foggia  <span style="text-decoration: underline;">2</span>005          5  61.5  4.95</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> Foggia  <span style="text-decoration: underline;">2</span>005          6  82.4  4.91</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> Foggia  <span style="text-decoration: underline;">2</span>006          7  30.0  5.66</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> Foggia  <span style="text-decoration: underline;">2</span>006          8  54.3  5.03</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> Foggia  <span style="text-decoration: underline;">2</span>006          9  67.6  5.11</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> Foggia  <span style="text-decoration: underline;">2</span>006         10  46.3  5.01</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 22 more rows</span></span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="compare-with-observations">Compare with observations<a class="anchor" aria-label="anchor" href="#compare-with-observations"></a>
 </h3>
-<p><code>tomatoFoggia$production</code> provides observed
-<code>yield_ref</code> (t ha⁻¹) and <code>brix_ref</code> (°Brix).
-Yields in the short output are in q ha⁻¹, so divide by 10:</p>
+<p><code>tomatoFoggia$production</code> contains observed
+<code>yield_ref</code> (t ha⁻¹) and <code>brix_ref</code> (°Brix). The
+<code>yield</code> column in the short output is in <strong>q
+ha⁻¹</strong>, so divide by 10 to convert to t ha⁻¹:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="va">harvest</span> <span class="op">|&gt;</span></span>
+<code class="sourceCode R"><span><span class="va">production</span> <span class="op">&lt;-</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">production</span></span>
+<span></span>
+<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="va">harvest</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>experiment <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">experiment</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">inner_join</a></span><span class="op">(</span><span class="va">production</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"experiment"</span> <span class="op">=</span> <span class="st">"ID"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>yield_t <span class="op">=</span> <span class="va">yield</span> <span class="op">/</span> <span class="fl">10</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">cmp</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">yield_ref</span>, <span class="va">yield_t</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_abline</a></span><span class="op">(</span>slope <span class="op">=</span> <span class="fl">1</span>, intercept <span class="op">=</span> <span class="fl">0</span>, linetype <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Observed yield (t ha-1)"</span>,</span>
-<span>       y <span class="op">=</span> <span class="st">"Simulated yield (t ha-1)"</span>,</span>
-<span>       title <span class="op">=</span> <span class="st">"cumba_experiment - yield calibration check"</span><span class="op">)</span></span>
-<span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_abline</a></span><span class="op">(</span>slope <span class="op">=</span> <span class="fl">1</span>, intercept <span class="op">=</span> <span class="fl">0</span>, linetype <span class="op">=</span> <span class="fl">2</span>, colour <span class="op">=</span> <span class="st">"grey50"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_smooth.html" class="external-link">geom_smooth</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"lm"</span>, se <span class="op">=</span> <span class="cn">TRUE</span>, colour <span class="op">=</span> <span class="st">"#d6604d"</span>,</span>
+<span>              fill <span class="op">=</span> <span class="st">"#f4a582"</span>, linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">3</span>, colour <span class="op">=</span> <span class="st">"#2166ac"</span>, alpha <span class="op">=</span> <span class="fl">0.85</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Observed yield (t ha⁻¹)"</span>,</span>
+<span>       y <span class="op">=</span> <span class="st">"Simulated yield (t ha⁻¹)"</span>,</span>
+<span>       title <span class="op">=</span> <span class="st">"CUMBA — yield validation"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span></code></pre></div>
+<p><img src="cumba-experiment_files/figure-html/compare-1.png" class="r-plt" width="672"></p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">cmp</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">brix_ref</span>, <span class="va">brix</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_abline</a></span><span class="op">(</span>slope <span class="op">=</span> <span class="fl">1</span>, intercept <span class="op">=</span> <span class="fl">0</span>, linetype <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Observed Brix (°)"</span>,</span>
-<span>       y <span class="op">=</span> <span class="st">"Simulated Brix (°)"</span>,</span>
-<span>       title <span class="op">=</span> <span class="st">"cumba_experiment - Brix calibration check"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_abline</a></span><span class="op">(</span>slope <span class="op">=</span> <span class="fl">1</span>, intercept <span class="op">=</span> <span class="fl">0</span>, linetype <span class="op">=</span> <span class="fl">2</span>, colour <span class="op">=</span> <span class="st">"grey50"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_smooth.html" class="external-link">geom_smooth</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"lm"</span>, se <span class="op">=</span> <span class="cn">TRUE</span>, colour <span class="op">=</span> <span class="st">"#4dac26"</span>,</span>
+<span>              fill <span class="op">=</span> <span class="st">"#b8e186"</span>, linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">3</span>, colour <span class="op">=</span> <span class="st">"#762a83"</span>, alpha <span class="op">=</span> <span class="fl">0.85</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Observed Brix (°Brix)"</span>,</span>
+<span>       y <span class="op">=</span> <span class="st">"Simulated Brix (°Brix)"</span>,</span>
+<span>       title <span class="op">=</span> <span class="st">"CUMBA — Brix validation"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span></code></pre></div>
+<p><img src="cumba-experiment_files/figure-html/compare-2.png" class="r-plt" width="672"></p>
 </div>
 <div class="section level3">
-<h3 id="daily-dynamics-with-fullout-true">Daily dynamics with <code>fullOut = TRUE</code><a class="anchor" aria-label="anchor" href="#daily-dynamics-with-fullout-true"></a>
+<h3 id="full-output-for-diagnostics">Full output for diagnostics<a class="anchor" aria-label="anchor" href="#full-output-for-diagnostics"></a>
 </h3>
-<p>For diagnostics or calibration of internal variables, pass
-<code>fullOut = TRUE</code>:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<p>Pass <code>fullOut = TRUE</code> to access every internal state
+variable (GDD, Kc, soil water per layer, carbon pools, flowering state,
+etc.):</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cumba_experiment.html">cumba_experiment</a></span><span class="op">(</span></span>
-<span>  weather       <span class="op">=</span> <span class="va">weather</span>,</span>
-<span>  param         <span class="op">=</span> <span class="va">cumbaParameters</span>,</span>
-<span>  irrigation_df <span class="op">=</span> <span class="va">irrigation_df</span>,</span>
-<span>  fullOut       <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  weather              <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">weather</span>,</span>
+<span>  param                <span class="op">=</span> <span class="va">cumbaParameters</span>,</span>
+<span>  irrigation_df        <span class="op">=</span> <span class="va">tomatoFoggia</span><span class="op">$</span><span class="va">irrigation</span>,</span>
+<span>  estimateRad          <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  estimateET0          <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  fullOut              <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">out_full</span><span class="op">)</span></span></code></pre></div>
-<p>You then have access to <code>kc</code>, <code>etR</code>,
-<code>fIntAct</code>, <code>carbonStateAct</code>,
-<code>floweringStateIde</code>, <code>fruitWaterContentAct</code>, etc.
-for every day.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="tips">Tips<a class="anchor" aria-label="anchor" href="#tips"></a>
+<h2 id="notes">Notes<a class="anchor" aria-label="anchor" href="#notes"></a>
 </h2>
 <ul>
 <li>Cardinal temperatures in <code>param</code> must satisfy
-<code>Tmax &gt; Topt &gt; Tbase</code> and the soil must satisfy
+<code>Tmax &gt; Topt &gt; Tbase</code> and soil parameters must satisfy
 <code>FieldCapacity &gt; WiltingPoint</code>; otherwise the function
-stops with a clear error.</li>
-<li>If you supply <code>param</code> as a tibble of values (instead of a
-list of lists), make sure all the required parameter names are present —
-the function checks them at start-up.</li>
+stops with a descriptive error.</li>
 <li>Run-time scales linearly with the number of (site × year × ID)
-combinations: each is simulated day-by-day independently.</li>
+combinations: each is simulated independently day-by-day.</li>
+<li>The <code>experiment</code> column in the output is a character;
+convert with <code><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer()</a></code> before joining with integer-keyed
+observation tables.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

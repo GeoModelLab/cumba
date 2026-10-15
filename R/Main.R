@@ -1,4 +1,4 @@
-#' CUMBA model — experiment runner
+#' CUMBA model - experiment runner
 #'
 #' Runs the daily time-step CUMBA simulation for one or more sites/experiments,
 #' computing tomato yield and Brix from weather inputs and irrigation options.
@@ -15,7 +15,7 @@
 #'   \item if \code{estimateET0 = FALSE}, column \code{ET0} is required.
 #' }
 #'
-#' \strong{irrigation\_df}: must include columns \code{ID}, \code{Site},
+#' \code{irrigation_df}: must include columns \code{ID}, \code{Site},
 #' \code{YEAR}, \code{DATE}, \code{WVOL}.
 #'
 #' @param weather A \code{data.frame} (or tibble) of daily weather by site with
@@ -50,7 +50,7 @@
 #' @param irrigation_df A \code{data.frame} with the irrigation schedule for each
 #'   experiment/site, containing columns \code{ID}, \code{Site}, \code{YEAR},
 #'   \code{DATE}, \code{WVOL}.
-#' @param irrigationEfficiency Numeric (0–1). Fraction of the observed applied
+#' @param irrigationEfficiency Numeric (0-1). Fraction of the observed applied
 #'   water (\code{WVOL}) that effectively reaches the root zone. Default
 #'   \code{0.9} (90\%, typical for drip irrigation). The \code{irrigation}
 #'   column in the output retains the original gross \code{WVOL} values; only
@@ -120,14 +120,17 @@
 #' @seealso \code{\link[tibble]{as_tibble}}, \code{\link[crayon]{blue}}, \code{\link[crayon]{red}}
 #' @importFrom tibble as_tibble
 #' @importFrom crayon blue red
+#' @importFrom dplyr filter mutate select rename case_when
+#' @importFrom stats runif setNames
+#' @importFrom utils head
 #' @export
 cumba_experiment <- function(weather, 
                              param, 
-                             estimateRad=T,
-                             estimateET0=T,
+                             estimateRad= TRUE,
+                             estimateET0= TRUE,
                              irrigation_df,
                              irrigationEfficiency = 0.9,
-                             fullOut = F)
+                             fullOut = FALSE)
 {
   # convert param list
   if (is.list(param) && all(sapply(param, function(p) is.list(p) && "value" %in% names(p)))) {
@@ -158,7 +161,7 @@ cumba_experiment <- function(weather,
   RadColID<-0
   Lat <- 0
   
-  if(estimateRad == F){
+  if(estimateRad == FALSE){
     RadColID <- which(colnames(weather)=='Rad')
   }
   else{
@@ -166,7 +169,7 @@ cumba_experiment <- function(weather,
   }
   
   ET0ColID<-0
-  if(estimateET0 == F){ET0ColID<-which(colnames(weather)=="ET0")}
+  if(estimateET0 == FALSE){ET0ColID<-which(colnames(weather)=="ET0")}
 
  
     # Check if required columns exist in irrigation_df data frame
@@ -345,9 +348,9 @@ cumba_experiment <- function(weather,
         # NON DATE. Usavamo date_vec[day] come SITO al posto di una data, e
         # l'override con date non veniva MAI applicato. Uso dfYear$DATE per nome.
         date_vec <- as.Date(dfYear$DATE)
-        lat_vec  <- if (estimateRad == T) round(as.numeric(dfYear[[LatColID]]), 2) else NULL
-        rad_vec  <- if (estimateRad == F) round(as.numeric(dfYear[[RadColID]]), 2) else NULL
-        et0_vec  <- if (estimateET0 == F) round(as.numeric(dfYear[[ET0ColID]]), 2) else NULL
+        lat_vec  <- if (estimateRad == TRUE) round(as.numeric(dfYear[[LatColID]]), 2) else NULL
+        rad_vec  <- if (estimateRad == FALSE) round(as.numeric(dfYear[[RadColID]]), 2) else NULL
+        et0_vec  <- if (estimateET0 == FALSE) round(as.numeric(dfYear[[ET0ColID]]), 2) else NULL
         # Look-up irrigazione (idem)
         exp_dates <- thisExperiment$DATE
         exp_wvol  <- thisExperiment$WVOL
@@ -367,15 +370,15 @@ cumba_experiment <- function(weather,
           irrigation <- if (length(irr_idx) == 1L) exp_wvol[irr_idx] else 0
 
           # Extract weather data for the current day
-          tX  <- tx_vec[day]                   #Maximum temperature, °C
-          tN  <- tn_vec[day]                   #Minimum temperature, °C
+          tX  <- tx_vec[day]                   #Maximum temperature, degC
+          tN  <- tn_vec[day]                   #Minimum temperature, degC
           doy <- doy_vec[day]                  #Day of the year
           tAve <- (tX + tN) * 0.5
           p   <- p_vec[day]                    #Precipitation, mm
           #radiation
           radSim <- 0
           Lat <- lat_vec[day]
-          if(estimateRad == T){
+          if(estimateRad == TRUE){
             radSim <- radiationCompute(Lat,doy,tX,tN) #Simulated radiation, MJ m-2 d-1
           }
           else{
@@ -384,7 +387,7 @@ cumba_experiment <- function(weather,
 
           #ET0
           et0<-0
-          if(estimateET0 == T){
+          if(estimateET0 == TRUE){
             et0<-et0Compute(Lat,doy,tX,tN)
           }else{
             et0 <- et0_vec[day]                  #ET0, mm d-1
@@ -672,7 +675,7 @@ cumba_experiment <- function(weather,
       }
       
       #message to console
-      cat(crayon::green(paste("\r","🍅 running experiment ", thisId, " in site ", 
+      cat(crayon::green(paste("\r","\U0001F345 running experiment ", thisId, " in site ", 
                               thisSite, " and year ", thisYear)))
       
       
@@ -711,8 +714,8 @@ cumba_experiment <- function(weather,
   rownames(dfOut) <- NULL
   
   
-  #select a subset of variables if fullOut == F
-  if(fullOut==F){
+  #select a subset of variables if fullOut == FALSE
+  if(fullOut== FALSE){
     dfOut<-dfOut |> 
       mutate(swc = (wc1mm+wc2mm+wc3mm)/rootDepthMax*10,
              fruitFreshWeightAct = fruitFreshWeightAct*.01) |> 
@@ -727,7 +730,7 @@ cumba_experiment <- function(weather,
   return(dfOut)
 }
 
-#' CUMBA model — automatic irrigation scenario runner
+#' CUMBA model - automatic irrigation scenario runner
 #'
 #' Runs the daily time-step CUMBA simulation in \emph{scenario} (automatic
 #' irrigation) mode.  Unlike \code{\link{cumba}}, which requires an observed
@@ -758,25 +761,25 @@ cumba_experiment <- function(weather,
 #' @param estimateET0 Logical. If \code{TRUE} (default), ET0 is estimated
 #'   from temperature (Hargreaves). If \code{FALSE}, \code{weather} must
 #'   include \code{ET0}.
-#' @param transplantingDOY Integer. Day of year (1–365) of transplanting.
+#' @param transplantingDOY Integer. Day of year (1-365) of transplanting.
 #'   The model starts accumulating GDD and running the water balance from
 #'   this day. Default \code{120} (approx. 30 April).
-#' @param irrigationStrategy A named list with three phenological phases —
-#'   \code{vegetative}, \code{reproductive}, \code{ripening} — each
+#' @param irrigationStrategy A named list with three phenological phases -
+#'   \code{vegetative}, \code{reproductive}, \code{ripening} - each
 #'   containing:
 #'   \describe{
-#'     \item{\code{wsLevel}}{Numeric (0–1). Fraction of transpirable soil
+#'     \item{\code{wsLevel}}{Numeric (0-1). Fraction of transpirable soil
 #'       water below which irrigation is triggered (water-stress threshold).}
 #'     \item{\code{turnMin}}{Integer. Minimum number of days that must have
 #'       elapsed since the last irrigation event before a new one is allowed.}
 #'   }
 #'   Default: all phases use \code{wsLevel = 0.5} and \code{turnMin = 2}.
-#' @param irrigationStopCycle Numeric (0–100). Cycle-completion percentage
+#' @param irrigationStopCycle Numeric (0-100). Cycle-completion percentage
 #'   beyond which automatic irrigation is suppressed regardless of soil-water
 #'   status. Useful to implement a cut-off irrigation strategy near harvest.
 #'   Default \code{100} (no cut-off; irrigation runs until the end of the
 #'   cycle).
-#' @param irrigationEfficiency Numeric (0–1). Fraction of applied water that
+#' @param irrigationEfficiency Numeric (0-1). Fraction of applied water that
 #'   effectively reaches the root zone.  Default \code{0.9} (90\%, typical
 #'   for drip irrigation).  The model computes the net soil-water deficit and
 #'   divides it by this value to obtain the \emph{gross} volume the farmer
@@ -806,7 +809,7 @@ cumba_experiment <- function(weather,
 #' On each simulated day the model: (1) updates the two-layer soil-water
 #' balance; (2) computes the water-stress coefficient (\code{ws}) from the
 #' fraction of transpirable soil water (FTSW); (3) decides whether to
-#' irrigate — irrigation is applied when \code{ws < wsLevel} for the current
+#' irrigate - irrigation is applied when \code{ws < wsLevel} for the current
 #' phase, at least \code{turnMin} days have elapsed since the last event,
 #' \code{cycleCompletion < irrigationStopCycle}, and the crop is in an active
 #' phenological phase (\code{phenoCode > 0}); (4) applies
@@ -842,7 +845,7 @@ cumba_experiment <- function(weather,
 #'   DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
 #'   Lat  = 40
 #' )
-#' param <- cumbaParameters()
+#' param <- cumbaParameters
 #'
 #' # Default strategy: irrigate at ws < 0.5, minimum 2 days between events
 #' \dontrun{
@@ -943,7 +946,7 @@ cumba_scenario <- function(weather, param,
   PColID <- which(colnames(weather) == "P")
   RadColID<-0
   Lat <- 0
-  if(estimateRad == F)
+  if(estimateRad == FALSE)
   {
     RadColID <- which(colnames(weather)=='Rad')
   }else
@@ -952,7 +955,7 @@ cumba_scenario <- function(weather, param,
   }
   
   ET0ColID<-0
-  if(estimateET0 == F)
+  if(estimateET0 == FALSE)
   {
     ET0ColID<-which(colnames(weather)=="ET0")
   }
@@ -1156,9 +1159,9 @@ cumba_scenario <- function(weather, param,
         # NON DATE. Usavamo date_vec[day] come SITO al posto di una data, e
         # l'override con date non veniva MAI applicato. Uso dfYear$DATE per nome.
         date_vec <- as.Date(dfYear$DATE)
-        lat_vec  <- if (estimateRad == T) round(as.numeric(dfYear[[LatColID]]), 2) else NULL
-        rad_vec  <- if (estimateRad == F) round(as.numeric(dfYear[[RadColID]]), 2) else NULL
-        et0_vec  <- if (estimateET0 == F) round(as.numeric(dfYear[[ET0ColID]]), 2) else NULL
+        lat_vec  <- if (estimateRad == TRUE) round(as.numeric(dfYear[[LatColID]]), 2) else NULL
+        rad_vec  <- if (estimateRad == FALSE) round(as.numeric(dfYear[[RadColID]]), 2) else NULL
+        et0_vec  <- if (estimateET0 == FALSE) round(as.numeric(dfYear[[ET0ColID]]), 2) else NULL
 
         # Iterate through each day in the current year ----
         #TODO: for debug
@@ -1269,12 +1272,12 @@ cumba_scenario <- function(weather, param,
           
           
           # Extract weather data for the current day (vettoriale, logica invariata)
-          tX   <- tx_vec[day]                #Maximum temperature, °C
-          tN   <- tn_vec[day]                #Minimum temperature, °C
-          tAve <- (tX + tN) * 0.5            #Mean temperature, °C
+          tX   <- tx_vec[day]                #Maximum temperature, degC
+          tN   <- tn_vec[day]                #Minimum temperature, degC
+          tAve <- (tX + tN) * 0.5            #Mean temperature, degC
           p    <- p_vec[day]                 #Precipitation, mm
           radSim <- 0
-          if(estimateRad == T)
+          if(estimateRad == TRUE)
           {
             Lat <- lat_vec[day]
             radSim <- radiationCompute(Lat,doy,tX,tN) #Simulated radiation, MJ m-2 d-1
@@ -1284,7 +1287,7 @@ cumba_scenario <- function(weather, param,
           }
           #ET0
           et0<-0
-          if(estimateET0 == T){
+          if(estimateET0 == TRUE){
             et0<-et0Compute(Lat,doy,tX,tN)
           }else{
             et0 <- et0_vec[day]              #ET0, mm d-1
@@ -1575,7 +1578,7 @@ cumba_scenario <- function(weather, param,
         }
         outputsExperiment[[as.character(thisId)]]<-tempOutputs
         
-        cat(crayon::green(paste("🍅 running experiment ", thisId, " in site ", 
+        cat(crayon::green(paste("\U0001F345 running experiment ", thisId, " in site ", 
                                 thisSite, " and year ", thisYear, "\n")))#message to console
       }
       
@@ -1612,8 +1615,8 @@ cumba_scenario <- function(weather, param,
   
   rownames(dfOut) <- NULL
   
-  #select a subset of variables if fullOut == F
-  if(fullOut==F){
+  #select a subset of variables if fullOut == FALSE
+  if(fullOut== FALSE){
     dfOut<-dfOut |> 
       mutate(swc = (wc1mm+wc2mm+wc3mm)/rootDepthMax*10,
              fruitFreshWeightAct = fruitFreshWeightAct*.01) |>  #from t ha-1 to q ha-1
@@ -2030,7 +2033,7 @@ et0Compute<-function(latitude, doy, tMax, tMin)
     (sunsetHourAngle * sin(latitudeRad) * sin(solarDeclination) +
        cos(latitudeRad) * cos(solarDeclination) * sin(sunsetHourAngle))
   
-  ra_mm <- ra / lambda   # convert MJ/m²/day → mm/day
+  ra_mm <- ra / lambda   # convert MJ/m2/day -> mm/day
   tMean <- (tMax + tMin) / 2
   
   ET0 <- 0.0023 * (tMean + 17.8) * sqrt(tMax - tMin) * ra_mm

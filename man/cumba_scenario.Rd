@@ -2,7 +2,7 @@
 % Please edit documentation in R/Main.R
 \name{cumba_scenario}
 \alias{cumba_scenario}
-\title{CUMBA model — automatic irrigation scenario runner}
+\title{CUMBA model - automatic irrigation scenario runner}
 \usage{
 cumba_scenario(
   weather,
@@ -36,28 +36,28 @@ estimated from temperature (Hargreaves); \code{Lat} must be in
 from temperature (Hargreaves). If \code{FALSE}, \code{weather} must
 include \code{ET0}.}
 
-\item{transplantingDOY}{Integer. Day of year (1–365) of transplanting.
+\item{transplantingDOY}{Integer. Day of year (1-365) of transplanting.
 The model starts accumulating GDD and running the water balance from
 this day. Default \code{120} (approx. 30 April).}
 
-\item{irrigationStrategy}{A named list with three phenological phases —
-\code{vegetative}, \code{reproductive}, \code{ripening} — each
+\item{irrigationStrategy}{A named list with three phenological phases -
+\code{vegetative}, \code{reproductive}, \code{ripening} - each
 containing:
 \describe{
-  \item{\code{wsLevel}}{Numeric (0–1). Fraction of transpirable soil
+  \item{\code{wsLevel}}{Numeric (0-1). Fraction of transpirable soil
     water below which irrigation is triggered (water-stress threshold).}
   \item{\code{turnMin}}{Integer. Minimum number of days that must have
     elapsed since the last irrigation event before a new one is allowed.}
 }
 Default: all phases use \code{wsLevel = 0.5} and \code{turnMin = 2}.}
 
-\item{irrigationStopCycle}{Numeric (0–100). Cycle-completion percentage
+\item{irrigationStopCycle}{Numeric (0-100). Cycle-completion percentage
 beyond which automatic irrigation is suppressed regardless of soil-water
 status. Useful to implement a cut-off irrigation strategy near harvest.
 Default \code{100} (no cut-off; irrigation runs until the end of the
 cycle).}
 
-\item{irrigationEfficiency}{Numeric (0–1). Fraction of applied water that
+\item{irrigationEfficiency}{Numeric (0-1). Fraction of applied water that
 effectively reaches the root zone.  Default \code{0.9} (90\%, typical
 for drip irrigation).  The model computes the net soil-water deficit and
 divides it by this value to obtain the \emph{gross} volume the farmer
@@ -106,7 +106,7 @@ Shiny app for decision support and what-if analysis.
 On each simulated day the model: (1) updates the two-layer soil-water
 balance; (2) computes the water-stress coefficient (\code{ws}) from the
 fraction of transpirable soil water (FTSW); (3) decides whether to
-irrigate — irrigation is applied when \code{ws < wsLevel} for the current
+irrigate - irrigation is applied when \code{ws < wsLevel} for the current
 phase, at least \code{turnMin} days have elapsed since the last event,
 \code{cycleCompletion < irrigationStopCycle}, and the crop is in an active
 phenological phase (\code{phenoCode > 0}); (4) applies
@@ -141,7 +141,7 @@ weather <- data.frame(
   DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
   Lat  = 40
 )
-param <- cumbaParameters()
+param <- cumbaParameters
 
 # Default strategy: irrigate at ws < 0.5, minimum 2 days between events
 \dontrun{
