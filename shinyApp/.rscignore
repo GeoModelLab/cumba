@@ -1,0 +1,6 @@
+# Files excluded from the shinyapps.io deploy bundle (rsconnect).
+# Syntax like .gitignore. NOTE: gemini_key.txt is intentionally NOT listed
+# here, so it IS bundled — the LLM chatbot needs it on the free tier.
+*.bak
+.Renviron
+.gitignore
