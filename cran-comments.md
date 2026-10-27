@@ -1,29 +1,29 @@
-## Submission
+## Resubmission
 
-This is a new submission of the `cumba` package (version 0.1.0).
+This is a resubmission. We thank the CRAN reviewer (Leonore Hochhauser) and
+have addressed all the points raised:
+
+* Removed the single quotes around the function names in the Description field.
+* Added references describing the methods to the Description field, in the
+  form authors (year) <doi:...>.
+* Rewrote the examples of cumba_experiment() and cumba_scenario() so that they
+  are directly executable on the bundled dataset and run in < 5 seconds.
+  All \dontrun{} wrappers and all commented-out example lines were removed.
+* Console output is no longer written unconditionally: both exported functions
+  now take a 'verbose' argument (default FALSE), and every cat() call is issued
+  only when verbose = TRUE, so messages can be fully suppressed.
 
 ## Test environments
 
-* Local: Windows 11 x64, R 4.4.2 (`devtools::check()`, `--as-cran`)
-* win-builder: R-devel (2026-10-14 r90673) and R-release
+* Local: Windows 11 x64, R 4.4.2 (`R CMD check --as-cran`)
+* win-builder: R-devel and R-release
 
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
 
-On win-builder the only NOTE comes from "checking CRAN incoming feasibility":
-
-* New submission.
-  This is the first submission of `cumba` to CRAN.
-
-* Possibly misspelled words in DESCRIPTION: "Brix", "phenology".
-  These are correct domain terms: "Brix" is the standard unit of total
-  soluble solids content in fruit, and "phenology" is the study of crop
-  developmental stages.
-
-(The local check additionally reported a "future file timestamps / unable to
-verify current time" NOTE; this is environmental and does not occur on
-win-builder.)
+The remaining NOTE is the standard "New submission". "Brix" and "phenology"
+flagged as possibly misspelled are correct domain terms.
 
 ## Downstream dependencies
 

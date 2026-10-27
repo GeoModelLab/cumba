@@ -15,7 +15,8 @@ cumba_scenario(
   irrigationStopCycle = 100,
   irrigationEfficiency = 0.9,
   fullOut = FALSE,
-  irrigationOverride = NULL
+  irrigationOverride = NULL,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -84,6 +85,9 @@ and \code{action} (\code{"skip"} or \code{"applied"}). An optional
     even if the model would not have irrigated.}
 }
 Default \code{NULL} (no overrides).}
+
+\item{verbose}{Logical. If \code{TRUE}, progress messages are printed to
+the console; default \code{FALSE}.}
 }
 \value{
 A \code{data.frame} of daily outputs. When \code{fullOut = FALSE}
@@ -133,35 +137,22 @@ blue (via \pkg{crayon}) when called.
 }
 
 \examples{
-weather <- data.frame(
-  Site = "TestSite",
-  Tx   = c(30, 32, 31),
-  Tn   = c(20, 21, 19),
-  P    = c(0, 5, 2),
-  DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
-  Lat  = 40
-)
-param <- cumbaParameters
+data(tomatoFoggia)
+data(cumbaParameters)
 
-# Default strategy: irrigate at ws < 0.5, minimum 2 days between events
-\dontrun{
-result <- cumba_scenario(weather, param)
-}
-
-# Custom strategy: stricter thresholds, cut off irrigation at 80\% cycle
-\dontrun{
-result <- cumba_scenario(
-  weather,
-  param,
-  transplantingDOY    = 120,
-  irrigationStrategy  = list(
-    vegetative   = list(wsLevel = 0.5, turnMin = 3),
-    reproductive = list(wsLevel = 0.4, turnMin = 2),
-    ripening     = list(wsLevel = 0.6, turnMin = 4)
-  ),
-  irrigationStopCycle = 80
+# Autonomous deficit-irrigation scenario on one growing season
+wx <- subset(tomatoFoggia$weather, format(DATE, "\%Y") == "2018")
+out <- cumba_scenario(
+  weather          = wx,
+  param            = cumbaParameters,
+  transplantingDOY = 120,
+  irrigationStrategy = list(
+    vegetative   = list(wsLevel = 0.5, turnMin = 4),
+    reproductive = list(wsLevel = 0.5, turnMin = 4),
+    ripening     = list(wsLevel = 0.5, turnMin = 4)
+  )
 )
-}
+head(out)
 
 }
 \seealso{

@@ -74,48 +74,14 @@
 #'   \code{fullOut}.
 #'
 #' @examples
-#' # Minimal reproducible inputs (toy data)
-#' weather <- data.frame(
-#'   Site = "TestSite",
-#'   Tx   = c(30, 32),
-#'   Tn   = c(20, 21),
-#'   P    = c(0, 5),
-#'   DATE = as.Date(c("2025-06-01", "2025-06-02")),
-#'   Lat  = 40
-#' )
+#' data(tomatoFoggia)
+#' data(cumbaParameters)
 #'
-#' irrigation_df <- data.frame(
-#'   ID = 1L,
-#'   Site = "TestSite",
-#'   YEAR = 2025L,
-#'   DATE = as.Date(c("2025-06-01", "2025-06-02")),
-#'   WVOL = c(5, 10)
-#' )
-#'
-#' # Parameters as list-of-lists (auto-converted):
-#' param <- list(
-#'   Tbase = list(value = 8, min = 0, max = 15, description = "Base T"),
-#'   Topt  = list(value = 26, min = 15, max = 35, description = "Opt T"),
-#'   Tmax  = list(value = 40, min = 30, max = 50, description = "Max T"),
-#'   Theat = list(value = 35), Tcold = list(value = 5),
-#'   FIntMax = list(value = 1), CycleLength = list(value = 120),
-#'   TransplantingLag = list(value = 5), FloweringLag = list(value = 40),
-#'   HalfIntGrowth = list(value = 0.5), HalfIntSenescence = list(value = 0.8),
-#'   InitialInt = list(value = 0.05), RUE = list(value = 2.5),
-#'   KcIni = list(value = 0.6), KcMax = list(value = 1.15),
-#'   RootIncrease = list(value = 0.01), RootDepthMax = list(value = 1.0),
-#'   RootDepthInitial = list(value = 0.1), FieldCapacity = list(value = 0.30),
-#'   WiltingPoint = list(value = 0.12), DepletionFraction = list(value = 0.5),
-#'   FloweringSlope = list(value = 1), FloweringMax = list(value = 1),
-#'   k0 = list(value = 0.01),
-#'   FruitWaterContentMin = list(value = 0.90),
-#'   FruitWaterContentMax = list(value = 0.95),
-#'   FruitWaterContentInc = list(value = 0.001),
-#'   FruitWaterContentDecreaseMax = list(value = 0.002)
-#' )
-#'
-#' # Run (uncomment when the function body is implemented):
-#' # result <- cumba_experiment(weather, param, irrigation_df = irrigation_df)
+#' # Replay one growing season from the bundled field dataset
+#' wx <- subset(tomatoFoggia$weather, format(DATE, "%Y") == "2018")
+#' out <- cumba_experiment(wx, cumbaParameters,
+#'                         irrigation_df = tomatoFoggia$irrigation)
+#' head(out)
 #'
 #' @seealso \code{\link[tibble]{as_tibble}}, \code{\link[crayon]{blue}}, \code{\link[crayon]{red}}
 #' @importFrom tibble as_tibble
@@ -123,6 +89,8 @@
 #' @importFrom dplyr filter mutate select rename case_when
 #' @importFrom stats runif setNames
 #' @importFrom utils head
+#' @param verbose Logical. If \code{TRUE}, progress messages are printed to
+#'   the console; default \code{FALSE}.
 #' @export
 cumba_experiment <- function(weather, 
                              param, 
@@ -130,7 +98,8 @@ cumba_experiment <- function(weather,
                              estimateET0= TRUE,
                              irrigation_df,
                              irrigationEfficiency = 0.9,
-                             fullOut = FALSE)
+                             fullOut = FALSE,
+                             verbose = FALSE)
 {
   # convert param list
   if (is.list(param) && all(sapply(param, function(p) is.list(p) && "value" %in% names(p)))) {
@@ -138,7 +107,7 @@ cumba_experiment <- function(weather,
   }
   
   #message on runner modality
-  cat(crayon::blue(paste("CUMBA running in experiment mode","\n")))
+  if (verbose) cat(crayon::blue(paste("CUMBA running in experiment mode","\n")))
   
   # Check if required columns exist in weather data frame
   required_columns <- c("Site", "Tx", "Tn", "P", "DATE")
@@ -675,7 +644,7 @@ cumba_experiment <- function(weather,
       }
       
       #message to console
-      cat(crayon::green(paste("\r","\U0001F345 running experiment ", thisId, " in site ", 
+      if (verbose) cat(crayon::green(paste("\r","\U0001F345 running experiment ", thisId, " in site ", 
                               thisSite, " and year ", thisYear)))
       
       
@@ -837,36 +806,25 @@ cumba_experiment <- function(weather,
 #'   default parameter set.
 #'
 #' @examples
-#' weather <- data.frame(
-#'   Site = "TestSite",
-#'   Tx   = c(30, 32, 31),
-#'   Tn   = c(20, 21, 19),
-#'   P    = c(0, 5, 2),
-#'   DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
-#'   Lat  = 40
+#' data(tomatoFoggia)
+#' data(cumbaParameters)
+#'
+#' # Autonomous deficit-irrigation scenario on one growing season
+#' wx <- subset(tomatoFoggia$weather, format(DATE, "%Y") == "2018")
+#' out <- cumba_scenario(
+#'   weather          = wx,
+#'   param            = cumbaParameters,
+#'   transplantingDOY = 120,
+#'   irrigationStrategy = list(
+#'     vegetative   = list(wsLevel = 0.5, turnMin = 4),
+#'     reproductive = list(wsLevel = 0.5, turnMin = 4),
+#'     ripening     = list(wsLevel = 0.5, turnMin = 4)
+#'   )
 #' )
-#' param <- cumbaParameters
+#' head(out)
 #'
-#' # Default strategy: irrigate at ws < 0.5, minimum 2 days between events
-#' \dontrun{
-#' result <- cumba_scenario(weather, param)
-#' }
-#'
-#' # Custom strategy: stricter thresholds, cut off irrigation at 80% cycle
-#' \dontrun{
-#' result <- cumba_scenario(
-#'   weather,
-#'   param,
-#'   transplantingDOY    = 120,
-#'   irrigationStrategy  = list(
-#'     vegetative   = list(wsLevel = 0.5, turnMin = 3),
-#'     reproductive = list(wsLevel = 0.4, turnMin = 2),
-#'     ripening     = list(wsLevel = 0.6, turnMin = 4)
-#'   ),
-#'   irrigationStopCycle = 80
-#' )
-#' }
-#'
+#' @param verbose Logical. If \code{TRUE}, progress messages are printed to
+#'   the console; default \code{FALSE}.
 #' @export
 cumba_scenario <- function(weather, param,
                            estimateRad = TRUE,
@@ -879,7 +837,8 @@ cumba_scenario <- function(weather, param,
                            irrigationStopCycle = 100,
                            irrigationEfficiency = 0.9,
                            fullOut = FALSE,
-                           irrigationOverride = NULL)
+                           irrigationOverride = NULL,
+                           verbose = FALSE)
 {
   # ---- irrigationOverride (Round 5) ----------------------------------
   # Permette all'agricoltore di SOVRASCRIVERE la decisione automatica
@@ -909,18 +868,18 @@ cumba_scenario <- function(weather, param,
                        else numeric(sum(ap))
     .ovr_appl_mm[!is.finite(.ovr_appl_mm)] <- 0
     # Round 14: log SPAVENTOSI per capire perche' l'override non si applica
-    cat(sprintf("[CUMBA OVERRIDE SETUP] %d skip + %d applied\n",
+    if (verbose) cat(sprintf("[CUMBA OVERRIDE SETUP] %d skip + %d applied\n",
                 length(.ovr_skip), length(.ovr_appl_dates)))
-    cat("  skip dates:    ", paste(.ovr_skip, collapse = ", "), "\n")
-    cat("  applied dates: ", paste(.ovr_appl_dates, collapse = ", "), "\n")
-    cat("  applied mm:    ", paste(.ovr_appl_mm, collapse = ", "), "\n")
+    if (verbose) cat("  skip dates:    ", paste(.ovr_skip, collapse = ", "), "\n")
+    if (verbose) cat("  applied dates: ", paste(.ovr_appl_dates, collapse = ", "), "\n")
+    if (verbose) cat("  applied mm:    ", paste(.ovr_appl_mm, collapse = ", "), "\n")
   }
   # convert param list
   if (is.list(param) && all(sapply(param, function(p) is.list(p) && "value" %in% names(p)))) {
     param <- tibble::as_tibble(lapply(param, function(p) p$value))
   }
   
-  cat(crayon::blue(paste("CUMBA running in deficit irrigation mode\n")))
+  if (verbose) cat(crayon::blue(paste("CUMBA running in deficit irrigation mode\n")))
   
   
   # Check if required columns exist in weather data frame
@@ -1247,7 +1206,7 @@ cumba_scenario <- function(weather, param,
               if (!is.na(date_chr) &&
                   (date_chr %in% .ovr_skip ||
                    date_chr %in% .ovr_appl_dates)) {
-                cat(sprintf("[CUMBA daily loop] day=%d doy=%d date=%s phenoCode=%d ws_pre=%.3f irrigation_pre=%.1f\n",
+                if (verbose) cat(sprintf("[CUMBA daily loop] day=%d doy=%d date=%s phenoCode=%d ws_pre=%.3f irrigation_pre=%.1f\n",
                             day, doy, date_chr,
                             as.integer(phenoCode),
                             as.numeric(ws),
@@ -1255,14 +1214,14 @@ cumba_scenario <- function(weather, param,
               }
               if (!is.na(date_chr)) {
                 if (date_chr %in% .ovr_skip) {
-                  cat(sprintf("  [OVR APPLY skip] irrigation %.1f -> 0\n",
+                  if (verbose) cat(sprintf("  [OVR APPLY skip] irrigation %.1f -> 0\n",
                               irrigation))
                   irrigation <- 0
                 } else if (length(.ovr_appl_dates) > 0L) {
                   ix_ap <- match(date_chr, .ovr_appl_dates)
                   if (!is.na(ix_ap)) {
                     new_mm <- as.numeric(.ovr_appl_mm[ix_ap])
-                    cat(sprintf("  [OVR APPLY applied] irrigation %.1f -> %.1f\n",
+                    if (verbose) cat(sprintf("  [OVR APPLY applied] irrigation %.1f -> %.1f\n",
                                 irrigation, new_mm))
                     irrigation <- new_mm
                   }
@@ -1578,7 +1537,7 @@ cumba_scenario <- function(weather, param,
         }
         outputsExperiment[[as.character(thisId)]]<-tempOutputs
         
-        cat(crayon::green(paste("\U0001F345 running experiment ", thisId, " in site ", 
+        if (verbose) cat(crayon::green(paste("\U0001F345 running experiment ", thisId, " in site ", 
                                 thisSite, " and year ", thisYear, "\n")))#message to console
       }
       
