@@ -22,11 +22,11 @@ Description: A daily time-step crop model for processing tomato that simulates
     for calibration), and cumba_scenario() runs the model in deficit-irrigation
     scenario mode, with irrigation triggered automatically on phase-specific
     soil-water-status thresholds. Methods build on Yan and Hunt (1999)
-    <doi:10.1006/anbo.1999.0955>, Prudent et al. (2011)
-    <doi:10.1093/jxb/erq318> and Casadebaig et al. (2011)
-    <doi:10.1016/j.agrformet.2010.09.012>; the field dataset used for
-    calibration is described in Carucci et al. (2024)
-    <doi:10.1016/j.dib.2024.110225>.
+    <doi:10.1006/anbo.1999.0955>, Zhao et al. (2019)
+    <doi:10.1016/j.eja.2019.01.009>, Casadebaig et al. (2011)
+    <doi:10.1016/j.agrformet.2010.09.012> and Prudent et al. (2010)
+    <doi:10.1093/jxb/erq318>; the field dataset used for calibration is
+    described in Carucci et al. (2024) <doi:10.1016/j.dib.2024.110225>.
 License: GPL-3
 URL: https://github.com/GeoModelLab/cumba
 BugReports: https://github.com/GeoModelLab/cumba/issues
