@@ -66,7 +66,7 @@ if ("cumba" %in% rownames(installed.packages())) {
 }
 # Reinstalla SEMPRE da GitHub (force = TRUE per essere sicuri)
 remotes::install_github("GeoModelLab/cumba",
-                        ref     = "claude/beautiful-mendel-dtpdbu",
+                        ref     = "main",
                         upgrade = "never", force = TRUE, quiet = FALSE)
 
 # Verifica metadati GitHub: deve avere RemoteType=github + RemoteUsername

@@ -9,8 +9,9 @@ replays an observed irrigation schedule,
 runs the model in **automatic deficit-irrigation mode**. Irrigation is
 triggered when, simultaneously:
 
-1.  the simulated water-stress index (`ws`) falls **below a
-    phase-specific threshold** (`wsLevel`), and
+1.  the crop water status (`ws = 1 - WSI`, where WSI is the simulated
+    water-stress index) falls **below a phase-specific threshold**
+    (`wsLevel`), and
 2.  at least `turnMin` days have elapsed since the last irrigation.
 
 The water applied at each event refills the soil to field capacity in
@@ -29,13 +30,14 @@ argument — a named list with one entry per phenological phase:
 
 Each entry is a list with:
 
-- `wsLevel` — WSI threshold (0–1). Irrigation fires when `ws < wsLevel`.
+- `wsLevel` — threshold (0–1) on the crop water status `ws = 1 - WSI`.
+  Irrigation fires when `ws < wsLevel`, i.e. when WSI exceeds
+  `1 - wsLevel`.
 - `turnMin` — minimum days between consecutive irrigations.
 
 ## A complete walkthrough on `tomatoFoggia`
 
 ``` r
-
 library(cumba)
 library(dplyr)
 library(ggplot2)
@@ -58,17 +60,6 @@ out <- cumba_scenario(
   ),
   fullOut = FALSE
 )
-#> CUMBA running in deficit irrigation mode
-#> 🍅 running experiment  1  in site  Foggia  and year  2005 
-#> 🍅 running experiment  2  in site  Foggia  and year  2006 
-#> 🍅 running experiment  3  in site  Foggia  and year  2012 
-#> 🍅 running experiment  4  in site  Foggia  and year  2013 
-#> 🍅 running experiment  5  in site  Foggia  and year  2014 
-#> 🍅 running experiment  6  in site  Foggia  and year  2015 
-#> 🍅 running experiment  7  in site  Foggia  and year  2016 
-#> 🍅 running experiment  8  in site  Foggia  and year  2017 
-#> 🍅 running experiment  9  in site  Foggia  and year  2018 
-#> 
 
 head(out)
 #>     site year experiment doy p irrigation              stage      swc yield
@@ -93,11 +84,10 @@ Define a full-irrigation and a deficit strategy, then compare yield and
 Brix at harvest across all site-years:
 
 ``` r
-
 full_irr <- list(
-  vegetative   = list(wsLevel = 0.7, turnMin = 4),
-  reproductive = list(wsLevel = 0.7, turnMin = 4),
-  ripening     = list(wsLevel = 0.6, turnMin = 4)
+  vegetative   = list(wsLevel = 1.0, turnMin = 4),
+  reproductive = list(wsLevel = 1.0, turnMin = 4),
+  ripening     = list(wsLevel = 1.0, turnMin = 4)
 )
 
 deficit <- list(
@@ -123,27 +113,6 @@ scen <- bind_rows(
   run_strategy(full_irr, "Full irrigation"),
   run_strategy(deficit,  "Deficit irrigation")
 )
-#> CUMBA running in deficit irrigation mode
-#> 🍅 running experiment  1  in site  Foggia  and year  2005 
-#> 🍅 running experiment  2  in site  Foggia  and year  2006 
-#> 🍅 running experiment  3  in site  Foggia  and year  2012 
-#> 🍅 running experiment  4  in site  Foggia  and year  2013 
-#> 🍅 running experiment  5  in site  Foggia  and year  2014 
-#> 🍅 running experiment  6  in site  Foggia  and year  2015 
-#> 🍅 running experiment  7  in site  Foggia  and year  2016 
-#> 🍅 running experiment  8  in site  Foggia  and year  2017 
-#> 🍅 running experiment  9  in site  Foggia  and year  2018 
-#> CUMBA running in deficit irrigation mode
-#> 🍅 running experiment  1  in site  Foggia  and year  2005 
-#> 🍅 running experiment  2  in site  Foggia  and year  2006 
-#> 🍅 running experiment  3  in site  Foggia  and year  2012 
-#> 🍅 running experiment  4  in site  Foggia  and year  2013 
-#> 🍅 running experiment  5  in site  Foggia  and year  2014 
-#> 🍅 running experiment  6  in site  Foggia  and year  2015 
-#> 🍅 running experiment  7  in site  Foggia  and year  2016 
-#> 🍅 running experiment  8  in site  Foggia  and year  2017 
-#> 🍅 running experiment  9  in site  Foggia  and year  2018 
-#> 
 
 # Last row per (strategy × site × year) = harvest day
 harvest <- scen |>
@@ -167,7 +136,6 @@ ggplot(harvest, aes(strategy_label, yield, fill = strategy_label)) +
 
 ``` r
 
-
 ggplot(harvest, aes(strategy_label, brix, fill = strategy_label)) +
   geom_boxplot(width = 0.45, outlier.shape = 21, outlier.size = 2,
                colour = "grey30", linewidth = 0.6) +
@@ -183,7 +151,6 @@ ggplot(harvest, aes(strategy_label, brix, fill = strategy_label)) +
 ### Daily soil-water and irrigation dynamics
 
 ``` r
-
 scen_yr1 <- scen |> filter(year == min(year))
 
 ggplot(scen_yr1, aes(doy)) +

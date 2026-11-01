@@ -414,7 +414,7 @@ function(input, output, session) {
   run_one_year <- function(weather_year, par, transplantingDOY,
                            ws_v, ws_r, ws_p, t_v, t_r, t_p,
                            irrigationOverride = NULL,
-                           irrigationStopCycle = 100) {
+                           irrigationStopCycle = .APP_IRRIGATION_STOP) {
     if (is.null(weather_year) || !nrow(weather_year)) return(NULL)
     res <- tryCatch({
       cumba_scenario(
@@ -450,37 +450,37 @@ function(input, output, session) {
   # ======================================================================
   learning_meta <- list(
     "RUE" = list(label = "RUE — radiation use efficiency (g MJ-1)",
-                 default = 2.95, min = 2.0, max = 3.5, step = 0.05,
+                 default = .pv("RUE"), min = .pmn("RUE"), max = .pmx("RUE"), step = 0.05,
                  hint = "Controls biomass accumulation rate: higher RUE → more canopy and yield."),
     "CycleLength" = list(label = "Cycle length (CycleLength, degree days)",
-                        default = 1216, min = 1000, max = 1600, step = 10,
+                 default = .pv("CycleLength"), min = .pmn("CycleLength"), max = .pmx("CycleLength"), step = 10,
                         hint = "Longer cycles delay maturation and increase summer water stress."),
     "FloweringLag" = list(label = "Flowering lag (FloweringLag, % of cycle)",
-                         default = 30, min = 20, max = 50, step = 1,
+                 default = .pv("FloweringLag"), min = .pmn("FloweringLag"), max = .pmx("FloweringLag"), step = 1,
                          hint = "Earlier flowering shifts the critical water stress phase."),
     "FIntMax" = list(label = "Max. light interception (FIntMax)",
-                    default = 0.9, min = 0.7, max = 1.0, step = 0.02,
+                 default = .pv("FIntMax"), min = .pmn("FIntMax"), max = .pmx("FIntMax"), step = 0.02,
                     hint = "Reflects full canopy closure fraction."),
     "WaterStressSensitivity" = list(label = "Water stress sensitivity (WSsens)",
-                                   default = 3.2, min = 2, max = 8, step = 0.2,
+                 default = .pv("WaterStressSensitivity"), min = .pmn("WaterStressSensitivity"), max = .pmx("WaterStressSensitivity"), step = 0.2,
                                    hint = "Higher values make the model more reactive to water stress."),
     "RootIncrease" = list(label = "Root growth rate (RootInc, cm/d)",
-                         default = 0.42, min = 0.3, max = 0.8, step = 0.02,
+                 default = .pv("RootIncrease"), min = .pmn("RootIncrease"), max = .pmx("RootIncrease"), step = 0.02,
                          hint = "Faster roots reach deep water earlier in the season."),
     "RootDepthMax" = list(label = "Max. root depth (RootMax, cm)",
-                         default = 88, min = 60, max = 100, step = 2,
+                 default = .pv("RootDepthMax"), min = .pmn("RootDepthMax"), max = .pmx("RootDepthMax"), step = 2,
                          hint = "Deeper roots = larger soil water reservoir."),
     "FruitWaterContentMin" = list(label = "Min. fruit water content (FruWCmin)",
-                                 default = 0.80, min = 0.75, max = 0.85, step = 0.01,
+                 default = .pv("FruitWaterContentMin"), min = .pmn("FruitWaterContentMin"), max = .pmx("FruitWaterContentMin"), step = 0.01,
                                  hint = "Controls the available space for sugar accumulation (Brix)."),
     "FruitWaterContentMax" = list(label = "Max. fruit water content (FruWCmax)",
-                                 default = 0.91, min = 0.88, max = 0.95, step = 0.01,
+                 default = .pv("FruitWaterContentMax"), min = .pmn("FruitWaterContentMax"), max = .pmx("FruitWaterContentMax"), step = 0.01,
                                  hint = "Sets the initial water equilibrium point of the fruit."),
     "k0" = list(label = "Sugar consumption rate (k0)",
-               default = 4, min = 3, max = 5, step = 0.1,
+                 default = .pv("k0"), min = .pmn("k0"), max = .pmx("k0"), step = 0.1,
                hint = "Controls the balance between carbohydrate accumulation and consumption."),
     "DepletionFraction" = list(label = "Soil water depletion fraction",
-                              default = 60, min = 40, max = 70, step = 1,
+                 default = .pv("DepletionFraction"), min = .pmn("DepletionFraction"), max = .pmx("DepletionFraction"), step = 1,
                               hint = "Available water threshold below which stress response begins.")
   )
   learning_pretty_names <- vapply(learning_meta, `[[`, character(1), "label")
@@ -507,7 +507,7 @@ function(input, output, session) {
           style = "font-size:11.5px; color:#6b7480; margin-top:-6px;",
           em(meta$hint),
           br(),
-          tags$small(sprintf("Calibrated default: %s", as.character(meta$default))))
+          tags$small(sprintf("Calibrated default: %s", format(signif(meta$default, 4)))))
     )
   })
 
@@ -876,7 +876,7 @@ function(input, output, session) {
     # impedisce qualsiasi irrigazione automatica. Solo le scelte dell'agricoltore
     # (action="applied" in irr_overrides) producono irrigazione. Niente pre-run.
     freeze_mode <- isTRUE(input$freezeMode)
-    isc <- if (freeze_mode) 0L else (input$irrigationStopCycle %||% 85L)
+    isc <- if (freeze_mode) 0L else (input$irrigationStopCycle %||% .APP_IRRIGATION_STOP)
 
     if (!is.null(ovr_df))
       message(sprintf("[current_run] OVERRIDE -> %d righe: %d skip + %d applied",
@@ -1024,11 +1024,17 @@ function(input, output, session) {
         tail_w <- om_cumba[om_cumba$year == y, , drop = FALSE]
         if (!nrow(tail_w)) return(NULL)
         tail_w$.doy <- as.integer(format(tail_w$DATE, "%j"))
-        tail_w <- tail_w[tail_w$.doy > cutoff_doy, , drop = FALSE]
+        # The tail starts the day after the last current-year day (the
+        # forecast ends at today + 15): starting at cutoff_doy + 1 left a
+        # one-day gap that made every ensemble member fail.
+        start_doy <- as.integer(format(max(cur_w$DATE) + 1L, "%j"))
+        tail_w <- tail_w[tail_w$.doy >= start_doy, , drop = FALSE]
         if (!nrow(tail_w)) return(NULL)
         # Rimappa la coda all'anno corrente (stesso DOY)
-        tail_w$DATE <- as.Date(sprintf("%d-%03d", cur_yr, tail_w$.doy),
-                               format = "%Y-%j")
+        tail_w$DATE <- suppressWarnings(
+          as.Date(sprintf("%d-%03d", cur_yr, tail_w$.doy), format = "%Y-%j"))
+        # DOY 366 of a leap template year has no date in a non-leap year
+        tail_w <- tail_w[!is.na(tail_w$DATE), , drop = FALSE]
         tail_w$year <- cur_yr
         tail_w$.doy <- NULL
         stitched <- dplyr::bind_rows(cur_w, tail_w)
@@ -2830,7 +2836,14 @@ LANGUAGE INSTRUCTION: Respond in the same language the user writes in.",
     has_it_words <- grepl(
       "\\b(come|cosa|quando|dove|perche|questo|questa|questi|quale|quali|posso|voglio|devo|bisogna|fare|avere|essere|con|per|del|della|dei|delle|nel|nella|nei|nelle|che|non|una|uno|ho|mi|si|ma|se|piu|meno|resa|irrigazione|irrigare|pomodoro|stagione|campo|acqua|strategia|deficit|varieta|raccolto|massimizzare|aumentare|ridurre|migliorare|ottimale|consiglio|suggerisci|dimmi|spiega|mostra|confronta|aiutami)\\b",
       tolower(msg), perl = TRUE)
-    lang <- if      (has_it_chars || has_it_words) ui_lang   # Italian/dialect
+    # Apulian (Foggiano) dialect markers, checked on the raw lower-case text
+    # because several start or end with an apostrophe ('e, quant', aggi').
+    has_fg_words <- grepl(
+      "(aggia|aggiu|agghi|pummarol|pumbador|accuss|jamme|u\u00e9|(^|\\s)'[eoa]\\s|(^|\\s)stu\\s|chi\u00f9)",
+      tolower(msg), perl = TRUE)
+    lang <- if      (has_fg_words)                 "foggiano" # Apulian dialect
+            else if (has_it_chars || has_it_words)            # Italian
+                    (if (identical(ui_lang, "foggiano")) "foggiano" else "it")
             else if (has_en_words)                 "en"       # clearly English
             else                                   ui_lang    # ambiguous: follow UI
 
@@ -2857,10 +2870,20 @@ LANGUAGE INSTRUCTION: Respond in the same language the user writes in.",
 
     is_err <- inherits(txt, "cumba_llm_err") || is.null(txt) || !nzchar(as.character(txt %||% ""))
     if (is_err) {
-      reply <- if (lang %in% c("it","foggiano")) "Spiacente, errore LLM. Riprova."
+      # No key / no connection / LLM error: answer with the rule-based
+      # summary of the current run (same text as the offline explain card).
+      it_lang <- lang %in% c("it", "foggiano")
+      fb <- tryCatch(synth_message(today_info(), weather_data(), current_run(),
+                                   current_run_ensemble(), lang = lang),
+                     error = function(e) "")
+      reply <- if (nzchar(fb %||% "")) fb
+               else if (it_lang) "Spiacente, errore LLM. Riprova."
                else "Sorry, couldn't reach the LLM. Please retry."
       chat_history(c(cur, list(list(role = "assistant", content = reply, hidden = FALSE))))
-      llm_state(list(status = "fallback", note = as.character(txt %||% ""), diag = NULL))
+      llm_state(list(status = "fallback",
+                     note = if (it_lang) "LLM non raggiungibile: risposta basata sulle regole."
+                            else "LLM unreachable: rule-based answer.",
+                     diag = as.character(txt %||% "")))
     } else {
       chat_history(c(cur, list(list(role = "assistant", content = as.character(txt), hidden = FALSE))))
       llm_state(list(status = "ok", note = NULL, diag = NULL))

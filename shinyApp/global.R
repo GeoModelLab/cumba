@@ -47,6 +47,38 @@ if (.in_pkg && requireNamespace("devtools", quietly = TRUE)) {
 
 `%||%` <- function(a, b) if (is.null(a) || length(a) == 0) b else a
 
+# --- Calibrated package parameters: single source of truth for the app ----
+# Slider values and ranges, the fallbacks of build_param_df(), the Learning
+# mode defaults and the variety catalogue all read cumba::cumbaParameters,
+# so the app runs the calibrated model shipped with the package.
+.CP  <- cumba::cumbaParameters
+.pv  <- function(n) .CP[[n]]$value
+.pmn <- function(n) .CP[[n]]$min
+# CycleLength range widened to 1400 °C·d to host the late varieties of the
+# catalogue (varieties.R); all other ranges are the package bounds.
+.pmx <- function(n) if (identical(n, "CycleLength")) max(.CP[[n]]$max, 1400) else .CP[[n]]$max
+# Slider steps (shared by ui.R and build_param_df()).
+.STEP <- list(Tbase = 0.5, Tmax = 0.5, Topt = 0.5, Tcold = 0.1, Theat = 0.01,
+              RUE = 0.01, CycleLength = 10, InitialInt = 0.001, FIntMax = 0.001,
+              TransplantingLag = 1, FloweringLag = 1, HalfIntGrowth = 1,
+              HalfIntSenescence = 1, FloweringSlope = 0.01, FloweringMax = 1,
+              KcIni = 0.05, KcMax = 0.05, RootIncrease = 0.01,
+              RootDepthInitial = 1, RootDepthMax = 1, WaterStressSensitivity = 0.1,
+              DepletionFraction = 1, SoilWaterInitial = 5, k0 = 0.01,
+              FruitWaterContentMin = 0.005, FruitWaterContentMax = 0.005,
+              FruitWaterContentInc = 0.01, FruitWaterContentDecreaseMax = 0.0001)
+# A slider snaps its value to its step grid: when it sits on the calibrated
+# value (within half a step) the exact calibrated value is passed to the model.
+.snap <- function(x, n) {
+  x <- as.numeric(x)
+  if (length(x) == 1L && is.finite(x) && abs(x - .pv(n)) <= .STEP[[n]] / 2 + 1e-9)
+    .pv(n) else x
+}
+# Irrigation cut-off (% of cycle completion) used by every run in the app
+# (current season, historical envelope, analogue ensemble, Learning mode),
+# so that current and historical runs are compared under the same rule.
+.APP_IRRIGATION_STOP <- 85L
+
 # --- Variety catalog ---------------------------------------------------------
 source("varieties.R")
 
@@ -472,26 +504,30 @@ build_param_df <- function(input, soil_data = NULL) {
   # mappa, anche se l'utente non ha mai aperto il pannello Avanzate.
   # soil_data: optional list(FieldCapacity, WiltingPoint) from fetch_soil_soilgrids().
   v <- function(x, fallback) if (is.null(x) || length(x) == 0L) fallback else x
-  TGro    <- v(input$TGro,    c(10, 35))
-  Topt    <- v(input$Topt,    24)
-  TStress <- v(input$TStress, c(5, 45))
-  RUE     <- v(input$RUE,     2.8)
-  CycleLength       <- v(input$CycleLength, 1216)
-  LightInterception <- v(input$LightInterception, c(0.001, 0.9))
-  TransFloLag <- v(input$TransFloLag, c(9, 30))
-  GrowthSenescenceCanopy <- v(input$GrowthSenescenceCanopy, c(19, 113))
-  Kc <- v(input$Kc, c(0.3, 1.15))
-  RootIncrease <- v(input$RootIncrease, 0.55)
-  RootDepth    <- v(input$RootDepth,    c(4, 60))
-  DepletionFraction      <- v(input$DepletionFraction, 50)   # percentage (Main.R divides /100)
-  SoilWaterInitial       <- v(input$SoilWaterInitial, 100)  # percentage (Main.R divides /100)
-  WaterStressSensitivity <- v(input$WaterStressSensitivity, 3)
-  FloweringSlope <- v(input$FloweringSlope, 0.5)
-  FloweringMax   <- v(input$FloweringMax,   80)
-  k0 <- v(input$k0, 4)
-  FruitWaterContent <- v(input$FruitWaterContent, c(0.8, 0.95))
-  FruitWaterContentInc <- v(input$FruitWaterContentInc, 0.01)
-  FruitWaterContentDecreaseMax <- v(input$FruitWaterContentDecreaseMax, 0.01)
+  # Fallbacks = calibrated package values; .snap() restores the exact
+  # calibrated value when a slider sits on it (sliders round to their step).
+  v2 <- function(x, a, b) { x <- v(x, c(.pv(a), .pv(b))); c(.snap(x[[1]], a), .snap(x[[2]], b)) }
+  v1 <- function(x, n) .snap(v(x, .pv(n)), n)
+  TGro    <- v2(input$TGro, "Tbase", "Tmax")
+  Topt    <- v1(input$Topt, "Topt")
+  TStress <- v2(input$TStress, "Tcold", "Theat")
+  RUE     <- v1(input$RUE, "RUE")
+  CycleLength       <- v1(input$CycleLength, "CycleLength")
+  LightInterception <- v2(input$LightInterception, "InitialInt", "FIntMax")
+  TransFloLag <- v2(input$TransFloLag, "TransplantingLag", "FloweringLag")
+  GrowthSenescenceCanopy <- v2(input$GrowthSenescenceCanopy, "HalfIntGrowth", "HalfIntSenescence")
+  Kc <- v2(input$Kc, "KcIni", "KcMax")
+  RootIncrease <- v1(input$RootIncrease, "RootIncrease")
+  RootDepth    <- v2(input$RootDepth, "RootDepthInitial", "RootDepthMax")
+  DepletionFraction      <- v1(input$DepletionFraction, "DepletionFraction")   # percentage (Main.R divides /100)
+  SoilWaterInitial       <- v1(input$SoilWaterInitial, "SoilWaterInitial")     # percentage (Main.R divides /100)
+  WaterStressSensitivity <- v1(input$WaterStressSensitivity, "WaterStressSensitivity")
+  FloweringSlope <- v1(input$FloweringSlope, "FloweringSlope")
+  FloweringMax   <- v1(input$FloweringMax, "FloweringMax")
+  k0 <- v1(input$k0, "k0")
+  FruitWaterContent <- v2(input$FruitWaterContent, "FruitWaterContentMin", "FruitWaterContentMax")
+  FruitWaterContentInc <- v1(input$FruitWaterContentInc, "FruitWaterContentInc")
+  FruitWaterContentDecreaseMax <- v1(input$FruitWaterContentDecreaseMax, "FruitWaterContentDecreaseMax")
 
   data.frame(
     Parameter = c("Tbase","Topt","Tmax","Theat","Tcold",
@@ -987,10 +1023,10 @@ reverse_geocode_nominatim <- function(lat, lon, lang = "it",
     "CUMBA MODEL — irrigationStopCycle parameter:",
     "Irrigation is automatically suspended when cycleCompletion",
     "(= gddState / CycleLength * 100) reaches the irrigationStopCycle threshold",
-    "(default 85%). This simulates the agronomic practice of stopping irrigation",
+    "(85% in this application). This simulates the agronomic practice of stopping irrigation",
     "before physiological maturity to concentrate fruit solutes and raise Brix.",
     "CycleLength is the total thermal time to maturity in degree-days (GDD, base",
-    "10°C); default 1216 °C·d (~100 days at average 22°C). Increasing",
+    sprintf("%s°C); default %d °C·d (varieties 1050-1380 °C·d). Increasing", .pv("Tbase"), as.integer(.pv("CycleLength"))),
     "irrigationStopCycle delays the stop (more water, lower Brix); decreasing it",
     "applies earlier stress (less water, higher Brix, possible yield penalty).",
 
@@ -1010,25 +1046,28 @@ reverse_geocode_nominatim <- function(lat, lon, lang = "it",
     "with the available growing season, and note Brix potential from k0.",
 
     # PARETO OPTIMISATION — EVIDENCE BASE
-    "EVIDENCE BASE (multi-objective Pareto optimisation: 256 irrigation strategies x",
-    "22 years = 5632 simulation-years; objectives: maximise yield, Brix, IWUE;",
-    "minimise total irrigation volume, number of irrigation events).",
+    "EVIDENCE BASE (scenario analysis of the companion paper, Carucci et al.: 256",
+    "irrigation strategies x 22 years (2000-2021) = 5632 simulation-years, Capitanata;",
+    "objectives: maximise yield, Brix, IWUE; minimise irrigation volume and events).",
+    "wsLevel = per-phase irrigation threshold on ws = 1 - WSI: irrigation is",
+    "triggered when ws < wsLevel, so a HIGHER wsLevel means a WETTER crop.",
     "CORE TRADE-OFF: reproductive-phase water supply (repWS) is the dominant lever.",
-    "repWS WSI=0.9 vs WSI=0.6 adds +22.8 t/ha yield but costs -0.475 Brix units —",
+    "repWS wsLevel 0.9 vs 0.6 adds +22.9 t/ha yield but costs -0.48 Brix units —",
     "this yield/quality tension is irreducible and must be stated explicitly.",
-    "Phase ranking — effect on yield (WSI 0.9 vs 0.6):",
-    "repWS +22.8 t/ha >> vegWS +11.5 t/ha > ripWS +5.3 t/ha.",
-    "Phase ranking — effect on Brix (WSI 0.9 vs 0.6):",
-    "repWS -0.475 >> ripWS -0.027; vegWS slightly positive (+0.013).",
-    "Irrigation cost (WSI 0.9 vs 0.6): vegWS +75 mm; repWS +53 mm; ripWS +34 mm.",
-    "PARETO COMPROMISE STRATEGY (balanced, equal weights across all objectives):",
+    "Phase ranking — effect on yield (wsLevel 0.9 vs 0.6):",
+    "repWS +22.9 t/ha >> vegWS +11.5 t/ha > ripWS +5.3 t/ha.",
+    "Phase ranking — effect on Brix (wsLevel 0.9 vs 0.6):",
+    "repWS -0.48 >> ripWS -0.03; vegWS slightly positive (+0.01).",
+    "Irrigation cost (wsLevel 0.9 vs 0.6): vegWS +71 mm; repWS +50 mm; ripWS +32 mm.",
+    "Reference set: 128 strategies, all with vegWS <= 0.7.",
+    "COMPROMISE STRATEGY (closest to the ideal point, equal weights):",
     "vegWS=0.7 repWS=0.7 ripWS=0.6 DOY=110 ->",
-    "yield=109 t/ha Brix=5.76 irrigation=415 mm IWUE=0.270 ~12 events.",
-    "Single-objective Pareto benchmarks:",
-    "Max yield: vegWS=0.7 repWS=0.9 ripWS=0.9 DOY=110 -> 132 t/ha Brix=5.39 490 mm 18 events.",
-    "Max Brix: vegWS=0.7 repWS=0.6 ripWS=0.6 DOY=125 -> 99 t/ha Brix=5.91 405 mm 11 events.",
-    "Min irrigation/events: vegWS=0.6 repWS=0.6 ripWS=0.6 DOY=115 -> 99 t/ha Brix=5.87 384 mm 10 events.",
-    "Max IWUE: vegWS=0.7 repWS=0.9 ripWS=0.6 DOY=110 -> 126 t/ha Brix=5.41 454 mm IWUE=0.285.",
+    "yield=109 t/ha Brix=5.76 irrigation=392 mm IWUE=0.29 ~12 events.",
+    "Reference strategies (22-year means):",
+    "Highest yield: vegWS=0.7 repWS=0.9 ripWS=0.9 DOY=110 -> 132 t/ha Brix=5.39 462 mm 18 events.",
+    "Highest IWUE: vegWS=0.7 repWS=0.9 ripWS=0.6 DOY=110 -> 126 t/ha Brix=5.41 429 mm 16 events IWUE=0.30.",
+    "Highest Brix: vegWS=0.7 repWS=0.6 ripWS=0.6 DOY=125 -> 99 t/ha Brix=5.91 382 mm 11 events.",
+    "Lowest water use: vegWS=0.6 repWS=0.6 ripWS=0.6 DOY=115 -> 99 t/ha Brix=5.87 362 mm 10 events.",
     "Transplanting: DOY=110 maximises yield; DOY=125 gains +0.018 Brix but loses ~5 t/ha yield.",
     "Inter-year variability is very high (year ICC ~0.9); weather-year effect dominates all outcomes.",
     "Use these benchmarks when interpreting the user's field-specific CUMBA outputs.",

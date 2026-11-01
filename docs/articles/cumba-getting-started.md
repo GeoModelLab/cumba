@@ -18,11 +18,10 @@ The package exposes two top-level entry points:
   user-supplied `irrigation_df`.
 - [`cumba_scenario()`](https://GeoModelLab.github.io/cumba/reference/cumba_scenario.md)
   — run the model in **deficit-irrigation scenario mode**, where
-  irrigation is triggered automatically when the simulated water-stress
-  index falls below a phase-specific threshold.
+  irrigation is triggered automatically when the crop water status
+  (`ws = 1 - WSI`) falls below a phase-specific threshold (`wsLevel`).
 
 ``` r
-
 library(cumba)
 ```
 
@@ -31,7 +30,6 @@ library(cumba)
 A complete default parameter set is bundled with the package:
 
 ``` r
-
 data(cumbaParameters)
 str(cumbaParameters, max.level = 1)
 #> List of 30
@@ -93,7 +91,6 @@ The package ships with a real-world dataset from processing-tomato field
 trials in Foggia (Apulia, Italy):
 
 ``` r
-
 data(tomatoFoggia)
 names(tomatoFoggia)
 #> [1] "weather"    "irrigation" "management" "production"
@@ -137,7 +134,6 @@ The minimal call uses the default parameters and the bundled weather and
 irrigation data:
 
 ``` r
-
 out <- cumba_experiment(
   weather       = tomatoFoggia$weather,
   param         = cumbaParameters,
@@ -153,18 +149,18 @@ head(out)
 The output is a `data.frame` with one row per (site, year, experiment,
 day-of-year). With `fullOut = FALSE` you get the *short* output:
 
-| column | meaning |
-|----|----|
-| `site` | site name |
-| `year` | calendar year |
-| `experiment` | experiment id (from irrigation_df) |
-| `doy` | day of year |
-| `p` | precipitation (mm) |
-| `irrigation` | irrigation applied (mm) |
-| `stage` | phenological stage label |
-| `swc` | soil water content (%) |
-| `yield` | fresh fruit yield (q ha⁻¹ in `cumba_experiment`; t ha⁻¹ in `cumba_scenario`) |
-| `brix` | actual Brix (°Brix) |
+| column       | meaning                                                                      |
+|--------------|------------------------------------------------------------------------------|
+| `site`       | site name                                                                    |
+| `year`       | calendar year                                                                |
+| `experiment` | experiment id (from irrigation_df)                                           |
+| `doy`        | day of year                                                                  |
+| `p`          | precipitation (mm)                                                           |
+| `irrigation` | irrigation applied (mm)                                                      |
+| `stage`      | phenological stage label                                                     |
+| `swc`        | soil water content (%)                                                       |
+| `yield`      | fresh fruit yield (q ha⁻¹ in `cumba_experiment`; t ha⁻¹ in `cumba_scenario`) |
+| `brix`       | actual Brix (°Brix)                                                          |
 
 Set `fullOut = TRUE` to get every internal state variable (carbon,
 flowering, fruit-water content, Kc, stresses, etc.).

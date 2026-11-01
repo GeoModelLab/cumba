@@ -20,7 +20,6 @@ This vignette runs the model in scenario mode over all years in
 ## Load data and run the model
 
 ``` r
-
 library(cumba)
 library(dplyr)
 library(ggplot2)
@@ -45,17 +44,6 @@ out <- cumba_scenario(
   ),
   fullOut = TRUE
 )
-#> CUMBA running in deficit irrigation mode
-#> 🍅 running experiment  1  in site  Foggia  and year  2005 
-#> 🍅 running experiment  2  in site  Foggia  and year  2006 
-#> 🍅 running experiment  3  in site  Foggia  and year  2012 
-#> 🍅 running experiment  4  in site  Foggia  and year  2013 
-#> 🍅 running experiment  5  in site  Foggia  and year  2014 
-#> 🍅 running experiment  6  in site  Foggia  and year  2015 
-#> 🍅 running experiment  7  in site  Foggia  and year  2016 
-#> 🍅 running experiment  8  in site  Foggia  and year  2017 
-#> 🍅 running experiment  9  in site  Foggia  and year  2018 
-#> 
 
 sim <- out |> select(year, doy, radiation, et0)
 glimpse(sim)
@@ -75,7 +63,6 @@ track the expected bell-shaped seasonal pattern for a Mediterranean site
 at latitude ~41°N.
 
 ``` r
-
 ggplot(sim, aes(doy, radiation)) +
   geom_line(colour = "#d6604d", linewidth = 0.8) +
   facet_wrap(~year, ncol = 3) +
@@ -100,7 +87,6 @@ radiation, rising through summer and falling toward harvest. Values in
 the 4–9 mm d⁻¹ range are typical for Foggia in June–August.
 
 ``` r
-
 ggplot(sim, aes(doy, et0)) +
   geom_area(fill = "#1b7837", alpha = 0.15) +
   geom_line(colour = "#1b7837", linewidth = 0.8) +
@@ -122,7 +108,6 @@ ggplot(sim, aes(doy, et0)) +
 ## Summary statistics by year
 
 ``` r
-
 sim |>
   group_by(year) |>
   summarise(

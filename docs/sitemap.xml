@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://GeoModelLab.github.io/cumba/404.html</loc></url>
+<url><loc>https://GeoModelLab.github.io/cumba/LICENSE.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/articles/cumba-experiment.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/articles/cumba-getting-started.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/articles/cumba-scenario.html</loc></url>
@@ -7,8 +8,8 @@
 <url><loc>https://GeoModelLab.github.io/cumba/articles/index.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/authors.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/index.html</loc></url>
-<url><loc>https://GeoModelLab.github.io/cumba/LICENSE-text.html</loc></url>
-<url><loc>https://GeoModelLab.github.io/cumba/LICENSE.html</loc></url>
+<url><loc>https://GeoModelLab.github.io/cumba/news/index.html</loc></url>
+<url><loc>https://GeoModelLab.github.io/cumba/reference/cumba-package.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/reference/cumbaParameters.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/reference/cumba_experiment.html</loc></url>
 <url><loc>https://GeoModelLab.github.io/cumba/reference/cumba_scenario.html</loc></url>

@@ -1,11 +1,13 @@
-# CUMBA model — automatic irrigation scenario runner
+# CUMBA model - automatic irrigation scenario runner
 
 Runs the daily time-step CUMBA simulation in *scenario* (automatic
-irrigation) mode. Unlike `cumba`, which requires an observed irrigation
-schedule, `cumba_scenario` computes irrigation autonomously based on
-soil-water status, phenological stage, and user-defined stress
-thresholds. This is the function used by the CUMBA Shiny app for
-decision support and what-if analysis.
+irrigation) mode. Unlike
+[`cumba`](https://GeoModelLab.github.io/cumba/reference/cumba-package.md),
+which requires an observed irrigation schedule, `cumba_scenario`
+computes irrigation autonomously based on the crop water stress index,
+phenological stage, and user-defined stress thresholds. This is the
+function used by the CUMBA Shiny app for decision support and what-if
+analysis.
 
 ## Usage
 
@@ -21,7 +23,8 @@ cumba_scenario(
   irrigationStopCycle = 100,
   irrigationEfficiency = 0.9,
   fullOut = FALSE,
-  irrigationOverride = NULL
+  irrigationOverride = NULL,
+  verbose = FALSE
 )
 ```
 
@@ -38,7 +41,9 @@ cumba_scenario(
   list with fields `value`, `min`, `max`, `description` (as returned by
   [`cumbaParameters`](https://GeoModelLab.github.io/cumba/reference/cumbaParameters.md)),
   or a tibble/data.frame of numeric parameter values already unpacked.
-  See `cumba` for the full list of required parameter names.
+  See
+  [`cumba`](https://GeoModelLab.github.io/cumba/reference/cumba-package.md)
+  for the full list of required parameter names.
 
 - estimateRad:
 
@@ -53,19 +58,23 @@ cumba_scenario(
 
 - transplantingDOY:
 
-  Integer. Day of year (1–365) of transplanting. The model starts
+  Integer. Day of year (1-365) of transplanting. The model starts
   accumulating GDD and running the water balance from this day. Default
   `120` (approx. 30 April).
 
 - irrigationStrategy:
 
-  A named list with three phenological phases — `vegetative`,
-  `reproductive`, `ripening` — each containing:
+  A named list with three phenological phases - `vegetative`,
+  `reproductive`, `ripening` - each containing:
 
   `wsLevel`
 
-  :   Numeric (0–1). Fraction of transpirable soil water below which
-      irrigation is triggered (water-stress threshold).
+  :   Numeric (0-1). Per-phase threshold applied to `ws = 1 - WSI`, the
+      complement of the water-stress index `WSI` (derived from the
+      fraction of transpirable soil water; 0 = no stress, 1 = maximum
+      stress). Irrigation is triggered when `ws < wsLevel`, i.e. when
+      `WSI` exceeds `1 - wsLevel`; higher values trigger at lower stress
+      and keep the soil wetter (`1` approaches full irrigation).
 
   `turnMin`
 
@@ -76,14 +85,14 @@ cumba_scenario(
 
 - irrigationStopCycle:
 
-  Numeric (0–100). Cycle-completion percentage beyond which automatic
-  irrigation is suppressed regardless of soil-water status. Useful to
+  Numeric (0-100). Cycle-completion percentage beyond which automatic
+  irrigation is suppressed regardless of crop water status. Useful to
   implement a cut-off irrigation strategy near harvest. Default `100`
   (no cut-off; irrigation runs until the end of the cycle).
 
 - irrigationEfficiency:
 
-  Numeric (0–1). Fraction of applied water that effectively reaches the
+  Numeric (0-1). Fraction of applied water that effectively reaches the
   root zone. Default `0.9` (90%, typical for drip irrigation). The model
   computes the net soil-water deficit and divides it by this value to
   obtain the *gross* volume the farmer must apply; the `irrigation`
@@ -119,6 +128,11 @@ cumba_scenario(
 
   Default `NULL` (no overrides).
 
+- verbose:
+
+  Logical. If `TRUE`, progress messages are printed to the console;
+  default `FALSE`.
+
 ## Value
 
 A `data.frame` of daily outputs. When `fullOut = FALSE` (default) the
@@ -130,15 +144,15 @@ When `fullOut = TRUE`, all internal state variables are included.
 ## Details
 
 On each simulated day the model: (1) updates the two-layer soil-water
-balance; (2) computes the water-stress coefficient (`ws`) from the
-fraction of transpirable soil water (FTSW); (3) decides whether to
-irrigate — irrigation is applied when `ws < wsLevel` for the current
-phase, at least `turnMin` days have elapsed since the last event,
-`cycleCompletion < irrigationStopCycle`, and the crop is in an active
-phenological phase (`phenoCode > 0`); (4) applies `irrigationEfficiency`
-so that the gross applied volume equals `net deficit / efficiency` while
-only the net fraction enters the soil; (5) computes biomass
-accumulation, fruit growth, and Brix dynamics.
+balance; (2) computes the water-stress index `WSI` from the fraction of
+transpirable soil water (FTSW), and its complement `ws = 1 - WSI`; (3)
+decides whether to irrigate - irrigation is applied when `ws < wsLevel`
+for the current phase, at least `turnMin` days have elapsed since the
+last event, `cycleCompletion < irrigationStopCycle`, and the crop is in
+an active phenological phase (`phenoCode > 0`); (4) applies
+`irrigationEfficiency` so that the gross applied volume equals
+`net deficit / efficiency` while only the net fraction enters the soil;
+(5) computes biomass accumulation, fruit growth, and Brix dynamics.
 
 Any `irrigationOverride` entries are applied after the automatic
 decision and before the water-balance update, so they correctly
@@ -159,42 +173,43 @@ The function prints `"CUMBA running in deficit irrigation mode"` in blue
 
 ## See also
 
-`cumba` for the experiment-mode runner that requires an observed
-irrigation schedule;
+[`cumba`](https://GeoModelLab.github.io/cumba/reference/cumba-package.md)
+for the experiment-mode runner that requires an observed irrigation
+schedule;
 [`cumbaParameters`](https://GeoModelLab.github.io/cumba/reference/cumbaParameters.md)
 for the default parameter set.
 
 ## Examples
 
 ``` r
-weather <- data.frame(
-  Site = "TestSite",
-  Tx   = c(30, 32, 31),
-  Tn   = c(20, 21, 19),
-  P    = c(0, 5, 2),
-  DATE = as.Date(c("2025-06-01", "2025-06-02", "2025-06-03")),
-  Lat  = 40
-)
-param <- cumbaParameters()
-#> Error in cumbaParameters(): could not find function "cumbaParameters"
+data(tomatoFoggia)
+data(cumbaParameters)
 
-# Default strategy: irrigate at ws < 0.5, minimum 2 days between events
-if (FALSE) { # \dontrun{
-result <- cumba_scenario(weather, param)
-} # }
-
-# Custom strategy: stricter thresholds, cut off irrigation at 80% cycle
-if (FALSE) { # \dontrun{
-result <- cumba_scenario(
-  weather,
-  param,
-  transplantingDOY    = 120,
-  irrigationStrategy  = list(
-    vegetative   = list(wsLevel = 0.5, turnMin = 3),
-    reproductive = list(wsLevel = 0.4, turnMin = 2),
-    ripening     = list(wsLevel = 0.6, turnMin = 4)
-  ),
-  irrigationStopCycle = 80
+# Autonomous deficit-irrigation scenario on one growing season
+wx <- subset(tomatoFoggia$weather, format(DATE, "%Y") == "2018")
+out <- cumba_scenario(
+  weather          = wx,
+  param            = cumbaParameters,
+  transplantingDOY = 120,
+  irrigationStrategy = list(
+    vegetative   = list(wsLevel = 0.5, turnMin = 4),
+    reproductive = list(wsLevel = 0.5, turnMin = 4),
+    ripening     = list(wsLevel = 0.5, turnMin = 4)
+  )
 )
-} # }
+head(out)
+#>     site year experiment doy    p irrigation              stage      swc yield
+#> 1 Foggia 2018          1 120  0.0          0 post-transplanting 29.74483     0
+#> 2 Foggia 2018          1 121  0.0          0 post-transplanting 29.54968     0
+#> 3 Foggia 2018          1 122 24.8          0 post-transplanting 30.00000     0
+#> 4 Foggia 2018          1 123 24.8          0 post-transplanting 30.00000     0
+#> 5 Foggia 2018          1 124  0.0          0 post-transplanting 29.80320     0
+#> 6 Foggia 2018          1 125  4.8          0 post-transplanting 29.80934     0
+#>   brix
+#> 1    0
+#> 2    0
+#> 3    0
+#> 4    0
+#> 5    0
+#> 6    0
 ```

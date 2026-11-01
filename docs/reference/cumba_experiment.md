@@ -1,4 +1,4 @@
-# CUMBA model — experiment runner
+# CUMBA model - experiment runner
 
 Runs the daily time-step CUMBA simulation for one or more
 sites/experiments, computing tomato yield and Brix from weather inputs
@@ -13,11 +13,12 @@ needed, and prints a blue message indicating it is running in
 cumba_experiment(
   weather,
   param,
-  estimateRad = T,
-  estimateET0 = T,
+  estimateRad = TRUE,
+  estimateET0 = TRUE,
   irrigation_df,
   irrigationEfficiency = 0.9,
-  fullOut = F
+  fullOut = FALSE,
+  verbose = FALSE
 )
 ```
 
@@ -70,7 +71,7 @@ cumba_experiment(
 
 - irrigationEfficiency:
 
-  Numeric (0–1). Fraction of the observed applied water (`WVOL`) that
+  Numeric (0-1). Fraction of the observed applied water (`WVOL`) that
   effectively reaches the root zone. Default `0.9` (90%, typical for
   drip irrigation). The `irrigation` column in the output retains the
   original gross `WVOL` values; only the soil water balance uses the net
@@ -81,6 +82,11 @@ cumba_experiment(
 
   Logical. If `FALSE` (default) returns key outputs; if `TRUE` returns
   all internal variables.
+
+- verbose:
+
+  Logical. If `TRUE`, progress messages are printed to the console;
+  default `FALSE`.
 
 ## Value
 
@@ -109,58 +115,38 @@ Depending on the flags:
 
 - if `estimateET0 = FALSE`, column `ET0` is required.
 
-**irrigation\\df**: must include columns `ID`, `Site`, `YEAR`, `DATE`,
+`irrigation_df`: must include columns `ID`, `Site`, `YEAR`, `DATE`,
 `WVOL`.
 
 ## See also
 
-[`as_tibble`](https://tibble.tidyverse.org/reference/as_tibble.html),
-[`blue`](http://r-lib.github.io/crayon/reference/crayon.md),
-[`red`](http://r-lib.github.io/crayon/reference/crayon.md)
+[`as_tibble`](https://rdrr.io/pkg/tibble/man/as_tibble.html),
+[`blue`](https://rdrr.io/pkg/crayon/man/crayon.html),
+[`red`](https://rdrr.io/pkg/crayon/man/crayon.html)
 
 ## Examples
 
 ``` r
-# Minimal reproducible inputs (toy data)
-weather <- data.frame(
-  Site = "TestSite",
-  Tx   = c(30, 32),
-  Tn   = c(20, 21),
-  P    = c(0, 5),
-  DATE = as.Date(c("2025-06-01", "2025-06-02")),
-  Lat  = 40
-)
+data(tomatoFoggia)
+data(cumbaParameters)
 
-irrigation_df <- data.frame(
-  ID = 1L,
-  Site = "TestSite",
-  YEAR = 2025L,
-  DATE = as.Date(c("2025-06-01", "2025-06-02")),
-  WVOL = c(5, 10)
-)
-
-# Parameters as list-of-lists (auto-converted):
-param <- list(
-  Tbase = list(value = 8, min = 0, max = 15, description = "Base T"),
-  Topt  = list(value = 26, min = 15, max = 35, description = "Opt T"),
-  Tmax  = list(value = 40, min = 30, max = 50, description = "Max T"),
-  Theat = list(value = 35), Tcold = list(value = 5),
-  FIntMax = list(value = 1), CycleLength = list(value = 120),
-  TransplantingLag = list(value = 5), FloweringLag = list(value = 40),
-  HalfIntGrowth = list(value = 0.5), HalfIntSenescence = list(value = 0.8),
-  InitialInt = list(value = 0.05), RUE = list(value = 2.5),
-  KcIni = list(value = 0.6), KcMax = list(value = 1.15),
-  RootIncrease = list(value = 0.01), RootDepthMax = list(value = 1.0),
-  RootDepthInitial = list(value = 0.1), FieldCapacity = list(value = 0.30),
-  WiltingPoint = list(value = 0.12), DepletionFraction = list(value = 0.5),
-  FloweringSlope = list(value = 1), FloweringMax = list(value = 1),
-  k0 = list(value = 0.01),
-  FruitWaterContentMin = list(value = 0.90),
-  FruitWaterContentMax = list(value = 0.95),
-  FruitWaterContentInc = list(value = 0.001),
-  FruitWaterContentDecreaseMax = list(value = 0.002)
-)
-
-# Run (uncomment when the function body is implemented):
-# result <- cumba_experiment(weather, param, irrigation_df = irrigation_df)
+# Replay one growing season from the bundled field dataset
+wx <- subset(tomatoFoggia$weather, format(DATE, "%Y") == "2018")
+out <- cumba_experiment(wx, cumbaParameters,
+                        irrigation_df = tomatoFoggia$irrigation)
+head(out)
+#>     site year experiment doy    p irrigation              stage      swc yield
+#> 1 Foggia 2018         29 117  0.0         20 post-transplanting 30.00000     0
+#> 2 Foggia 2018         29 118  0.0          0 post-transplanting 29.73897     0
+#> 3 Foggia 2018         29 119  0.0          0 post-transplanting 29.50209     0
+#> 4 Foggia 2018         29 120  0.0          0 post-transplanting 29.29649     0
+#> 5 Foggia 2018         29 121  0.0          0 post-transplanting 29.25888     0
+#> 6 Foggia 2018         29 122 24.8          0         vegetative 30.00000     0
+#>   brix
+#> 1    0
+#> 2    0
+#> 3    0
+#> 4    0
+#> 5    0
+#> 6    0
 ```

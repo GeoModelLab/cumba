@@ -1399,6 +1399,13 @@ app_js <- "
 
 sl <- function(class_, ...) div(class = paste('slider-container', class_),
                                 sliderInput(...))
+# Parameter sliders bound to cumbaParameters: single value (sl1) or a range
+# built from two parameters (sl2: lower bound from `a`, upper bound from `b`).
+sl1 <- function(class_, id, label, n)
+  sl(class_, id, label, min = .pmn(n), max = .pmx(n), value = .pv(n), step = .STEP[[n]])
+sl2 <- function(class_, id, label, a, b)
+  sl(class_, id, label, min = min(.pmn(a), .pmn(b)), max = max(.pmx(a), .pmx(b)),
+     value = c(.pv(a), .pv(b)), step = min(.STEP[[a]], .STEP[[b]]))
 
 # ---- Helper: a per-phase irrigation card --------------------------------
 phase_card <- function(prefix, header_label, header_class,
@@ -1448,68 +1455,54 @@ quickPanel <- tabPanel(
 # ---- Advanced tab — 3-4 sliders per row --------------------------------
 advancedPanel <- tabPanel(
   "Advanced",
+  # Values and ranges come from cumba::cumbaParameters (calibrated package
+  # defaults); see .pv()/.pmn()/.pmx()/.STEP in global.R.
   h4(id="advGrowth", "Growth", class = "section-header growth-parameters"),
   fluidRow(
-    column(6, sl("growth-slider", "TGro",   "T card. (°C)",  min = 6,  max = 36, value = c(10, 35))),
-    column(6, sl("growth-slider", "Topt",   "T opt (°C)",    min = 22, max = 26, value = 24))
+    column(6, sl2("growth-slider", "TGro",    "T card. (°C)",  "Tbase", "Tmax")),
+    column(6, sl1("growth-slider", "Topt",    "T opt (°C)",    "Topt"))
   ),
   fluidRow(
-    column(6, sl("growth-slider", "TStress","T stress (°C)", min = 0,  max = 50, value = c(5, 45))),
-    column(6, sl("growth-slider", "RUE",    "RUE (g/MJ)",    min = 1,  max = 3,  value = 2.8, step = 0.1))
+    column(6, sl2("growth-slider", "TStress", "T stress (°C)", "Tcold", "Theat")),
+    column(6, sl1("growth-slider", "RUE",     "RUE (g/MJ)",    "RUE"))
   ),
 
   h4(id="advPheno", "Phenology & canopy", class = "section-header phenology-parameters"),
   fluidRow(
-    column(6, sl("phenology-slider", "CycleLength", "Cycle (°C·d)",
-                 min = 1000, max = 1400, value = 1216, step = 10)),
-    column(6, sl("phenology-slider", "LightInterception", "Light int.",
-                 min = 0.001, max = 1, value = c(0.001, .9), step = 0.01))
+    column(6, sl1("phenology-slider", "CycleLength", "Cycle (°C·d)", "CycleLength")),
+    column(6, sl2("phenology-slider", "LightInterception", "Light int.", "InitialInt", "FIntMax"))
   ),
   fluidRow(
-    column(6, sl("phenology-slider", "TransFloLag", "Tran/Flow lag %",
-                 min = 0, max = 50, value = c(9, 30))),
-    column(6, sl("phenology-slider", "GrowthSenescenceCanopy", "Grow→Sen %",
-                 min = 10, max = 130, value = c(19, 100.5)))
+    column(6, sl2("phenology-slider", "TransFloLag", "Tran/Flow lag %", "TransplantingLag", "FloweringLag")),
+    column(6, sl2("phenology-slider", "GrowthSenescenceCanopy", "Grow→Sen %", "HalfIntGrowth", "HalfIntSenescence"))
   ),
   fluidRow(
-    column(6, sl("phenology-slider", "FloweringSlope", "Flow. slope",
-                 min = 0.3, max = 0.6, value = 0.5, step = 0.01)),
-    column(6, sl("phenology-slider", "FloweringMax",   "Flow. max",
-                 min = 40, max = 90, value = 41))
+    column(6, sl1("phenology-slider", "FloweringSlope", "Flow. slope", "FloweringSlope")),
+    column(6, sl1("phenology-slider", "FloweringMax",   "Flow. max",   "FloweringMax"))
   ),
 
   h4(id="advWater", "Water & soil", class = "section-header stress-parameters"),
   fluidRow(
-    column(6, sl("stress-slider", "Kc",                     "Kc",
-                 min = 0.2, max = 1.2, value = c(0.3, 1.15), step = 0.05)),
-    column(6, sl("stress-slider", "RootIncrease",           "Root inc.",
-                 min = 0.3,  max = .8, value = .42, step = 0.05))
+    column(6, sl2("stress-slider", "Kc",           "Kc",        "KcIni", "KcMax")),
+    column(6, sl1("stress-slider", "RootIncrease", "Root inc.", "RootIncrease"))
   ),
   fluidRow(
-    column(6, sl("stress-slider", "RootDepth",              "Root depth (cm)",
-                 min = 1,    max = 100, value = c(4, 60))),
-    column(6, sl("stress-slider", "WaterStressSensitivity", "WS sens.",
-                 min = 0.5,  max = 4.5, value = 3.23, step = 0.1))
+    column(6, sl2("stress-slider", "RootDepth",              "Root depth (cm)", "RootDepthInitial", "RootDepthMax")),
+    column(6, sl1("stress-slider", "WaterStressSensitivity", "WS sens.",        "WaterStressSensitivity"))
   ),
   fluidRow(
-    column(6, sl("stress-slider", "DepletionFraction", "Depletion (% AWC)",
-                 min = 20,   max = 80,  value = 30, step = 1)),
-    column(6, sl("stress-slider", "SoilWaterInitial", "Init. soil W (%AWC)",
-                 min = 30,   max = 100, value = 100, step = 5))
+    column(6, sl1("stress-slider", "DepletionFraction", "Depletion (% AWC)",   "DepletionFraction")),
+    column(6, sl1("stress-slider", "SoilWaterInitial",  "Init. soil W (%AWC)", "SoilWaterInitial"))
   ),
 
   h4(id="advFruit", "Fruit quality", class = "section-header brix-parameters"),
   fluidRow(
-    column(6, sl("brix-slider", "k0",                            "k0 sugar",
-                 min = 2,      max = 5,     value = 4, step = 0.1)),
-    column(6, sl("brix-slider", "FruitWaterContent",             "Fruit water",
-                 min = 0.8,    max = 1,     value = c(0.8, 0.91), step = 0.005))
+    column(6, sl1("brix-slider", "k0",                "k0 sugar",    "k0")),
+    column(6, sl2("brix-slider", "FruitWaterContent", "Fruit water", "FruitWaterContentMin", "FruitWaterContentMax"))
   ),
   fluidRow(
-    column(6, sl("brix-slider", "FruitWaterContentInc",          "Water inc.",
-                 min = 0.05,  max = 0.2, value = 0.14,  step = 0.001)),
-    column(6, sl("brix-slider", "FruitWaterContentDecreaseMax",  "Water dec. max",
-                 min = 0.0001, max = 0.001, value = 0.0002, step = 0.0001))
+    column(6, sl1("brix-slider", "FruitWaterContentInc",         "Water inc.",     "FruitWaterContentInc")),
+    column(6, sl1("brix-slider", "FruitWaterContentDecreaseMax", "Water dec. max", "FruitWaterContentDecreaseMax"))
   )
 )
 

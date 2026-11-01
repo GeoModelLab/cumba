@@ -15,20 +15,19 @@ triggered automatically based on phase-specific water-stress thresholds.
 
 ## Required inputs
 
-| Argument | Description |
-|----|----|
-| `weather` | Daily data frame: `Site`, `Tx`, `Tn`, `P`, `DATE`, `Lat` (if `estimateRad = TRUE`) or `Rad` |
-| `param` | Named list-of-lists (e.g. `cumbaParameters`) or plain numeric data frame |
-| `irrigation_df` | Data frame with `ID`, `Site`, `YEAR`, `DATE`, `WVOL` (mm) |
-| `estimateRad` | `TRUE` → Hargreaves–Samani from `Lat`; `FALSE` → use `Rad` column |
-| `estimateET0` | `TRUE` → FAO-56 Penman–Monteith; `FALSE` → use `ET0` column |
-| `irrigationEfficiency` | Fraction of applied water reaching the root zone (default `0.9`) |
-| `fullOut` | `FALSE` → short output; `TRUE` → all internal state variables |
+| Argument               | Description                                                                                 |
+|------------------------|---------------------------------------------------------------------------------------------|
+| `weather`              | Daily data frame: `Site`, `Tx`, `Tn`, `P`, `DATE`, `Lat` (if `estimateRad = TRUE`) or `Rad` |
+| `param`                | Named list-of-lists (e.g. `cumbaParameters`) or plain numeric data frame                    |
+| `irrigation_df`        | Data frame with `ID`, `Site`, `YEAR`, `DATE`, `WVOL` (mm)                                   |
+| `estimateRad`          | `TRUE` → Hargreaves–Samani from `Lat`; `FALSE` → use `Rad` column                           |
+| `estimateET0`          | `TRUE` → FAO-56 Penman–Monteith; `FALSE` → use `ET0` column                                 |
+| `irrigationEfficiency` | Fraction of applied water reaching the root zone (default `0.9`)                            |
+| `fullOut`              | `FALSE` → short output; `TRUE` → all internal state variables                               |
 
 ## A complete walkthrough on `tomatoFoggia`
 
 ``` r
-
 library(cumba)
 library(dplyr)
 library(ggplot2)
@@ -45,8 +44,6 @@ out <- cumba_experiment(
   irrigationEfficiency = 0.9,
   fullOut              = FALSE
 )
-#> CUMBA running in experiment mode 
-#>  🍅 running experiment  6  in site  Foggia  and year  2005 🍅 running experiment  12  in site  Foggia  and year  2006 🍅 running experiment  14  in site  Foggia  and year  2012 🍅 running experiment  18  in site  Foggia  and year  2013 🍅 running experiment  20  in site  Foggia  and year  2014 🍅 running experiment  22  in site  Foggia  and year  2015 🍅 running experiment  24  in site  Foggia  and year  2016 🍅 running experiment  28  in site  Foggia  and year  2017 🍅 running experiment  32  in site  Foggia  and year  2018
 
 head(out)
 #>     site year experiment doy p irrigation              stage      swc yield
@@ -72,7 +69,6 @@ each (site × year × experiment) combination carries the harvest-day
 yield and Brix:
 
 ``` r
-
 harvest <- out |>
   group_by(site, year, experiment) |>
   slice_tail(n = 1) |>
@@ -83,16 +79,16 @@ harvest
 #> # A tibble: 32 × 5
 #>    site    year experiment yield  brix
 #>    <chr>  <dbl>      <dbl> <dbl> <dbl>
-#>  1 Foggia  2005          1  36.6  5.71
-#>  2 Foggia  2005          2  72.0  5.13
-#>  3 Foggia  2005          3  93.8  4.90
-#>  4 Foggia  2005          4  56.6  5.08
-#>  5 Foggia  2005          5  61.5  4.95
-#>  6 Foggia  2005          6  82.4  4.91
-#>  7 Foggia  2006          7  30.0  5.66
-#>  8 Foggia  2006          8  54.3  5.03
-#>  9 Foggia  2006          9  67.6  5.11
-#> 10 Foggia  2006         10  46.3  5.01
+#>  1 Foggia  2005          1  41.2  6.01
+#>  2 Foggia  2005          2  82.4  5.35
+#>  3 Foggia  2005          3 108.   5.07
+#>  4 Foggia  2005          4  64.7  5.29
+#>  5 Foggia  2005          5  70.5  5.15
+#>  6 Foggia  2005          6  94.9  5.09
+#>  7 Foggia  2006          7  35.2  5.98
+#>  8 Foggia  2006          8  65.6  5.24
+#>  9 Foggia  2006          9  81.9  5.33
+#> 10 Foggia  2006         10  55.8  5.23
 #> # ℹ 22 more rows
 ```
 
@@ -103,7 +99,6 @@ harvest
 ha⁻¹**, so divide by 10 to convert to t ha⁻¹:
 
 ``` r
-
 production <- tomatoFoggia$production
 
 cmp <- harvest |>
@@ -126,7 +121,6 @@ ggplot(cmp, aes(yield_ref, yield_t)) +
 
 ``` r
 
-
 ggplot(cmp, aes(brix_ref, brix)) +
   geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey50") +
   geom_smooth(method = "lm", se = TRUE, colour = "#4dac26",
@@ -146,7 +140,6 @@ Pass `fullOut = TRUE` to access every internal state variable (GDD, Kc,
 soil water per layer, carbon pools, flowering state, etc.):
 
 ``` r
-
 out_full <- cumba_experiment(
   weather              = tomatoFoggia$weather,
   param                = cumbaParameters,

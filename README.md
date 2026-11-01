@@ -44,9 +44,19 @@ out <- cumba_experiment(
 head(out)
 ```
 
+## Web application
+
+A farmer-facing Shiny application built on `cumba` (field selection,
+Open-Meteo weather, daily irrigation advice, Learning mode and an LLM
+chatbot) is available at <https://geomodelab.shinyapps.io/cumba/>; it can
+also be launched locally from the package source with
+`shiny::runApp("shinyApp/")`.
+
 ## Documentation
 
 - `vignette("cumba-getting-started")` — model overview and minimal example.
 - `vignette("cumba-experiment")`      — running observed experiments.
 - `vignette("cumba-scenario")`        — deficit-irrigation scenarios.
 - `vignette("estimate_et0_rad")`      — ET0 / radiation calibration workflow.
+
+Package website: <https://geomodellab.github.io/cumba/>.

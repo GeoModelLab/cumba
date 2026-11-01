@@ -32,8 +32,9 @@ The package exposes two top-level entry points:
 - `cumba_experiment()` — run the model on one or more **observed
   experiments**, using a user-supplied `irrigation_df`.
 - `cumba_scenario()` — run the model in **deficit-irrigation scenario
-  mode**, where irrigation is triggered automatically when the simulated
-  water-stress index falls below a phase-specific threshold.
+  mode**, where irrigation is triggered automatically when the crop water
+  status (`ws = 1 - WSI`) falls below a phase-specific threshold
+  (`wsLevel`).
 
 ```{r setup}
 library(cumba)

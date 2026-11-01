@@ -1,8 +1,11 @@
 # Model Parameters for Cumba
 
-This dataset contains the default model parameters used in the Cumba
-package. Each element corresponds to a model parameter and includes its
-description, current value, minimum, and maximum.
+This dataset contains the model parameters used in the Cumba package:
+RUE, Theat, k0 and FruitWaterContentDecreaseMax hold the values
+calibrated on the bundled tomatoFoggia experiments, the others
+literature or measured defaults. Each element corresponds to a model
+parameter and includes its description, current value, minimum, and
+maximum.
 
 ## Usage
 
@@ -20,7 +23,7 @@ A named list where each entry is a list with:
 
 - value:
 
-  The default value of the parameter
+  The parameter value (calibrated or default)
 
 - min:
 

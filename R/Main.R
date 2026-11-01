@@ -704,7 +704,7 @@ cumba_experiment <- function(weather,
 #' Runs the daily time-step CUMBA simulation in \emph{scenario} (automatic
 #' irrigation) mode.  Unlike \code{\link{cumba}}, which requires an observed
 #' irrigation schedule, \code{cumba_scenario} computes irrigation
-#' autonomously based on soil-water status, phenological stage, and
+#' autonomously based on the crop water stress index, phenological stage, and
 #' user-defined stress thresholds.  This is the function used by the CUMBA
 #' Shiny app for decision support and what-if analysis.
 #'
@@ -737,14 +737,19 @@ cumba_experiment <- function(weather,
 #'   \code{vegetative}, \code{reproductive}, \code{ripening} - each
 #'   containing:
 #'   \describe{
-#'     \item{\code{wsLevel}}{Numeric (0-1). Fraction of transpirable soil
-#'       water below which irrigation is triggered (water-stress threshold).}
+#'     \item{\code{wsLevel}}{Numeric (0-1). Per-phase threshold applied to
+#'       \code{ws = 1 - WSI}, the complement of the water-stress index
+#'       \code{WSI} (derived from the fraction of transpirable soil water;
+#'       0 = no stress, 1 = maximum stress). Irrigation is triggered when
+#'       \code{ws < wsLevel}, i.e. when \code{WSI} exceeds \code{1 - wsLevel};
+#'       higher values trigger at lower stress and keep the soil wetter
+#'       (\code{1} approaches full irrigation).}
 #'     \item{\code{turnMin}}{Integer. Minimum number of days that must have
 #'       elapsed since the last irrigation event before a new one is allowed.}
 #'   }
 #'   Default: all phases use \code{wsLevel = 0.5} and \code{turnMin = 2}.
 #' @param irrigationStopCycle Numeric (0-100). Cycle-completion percentage
-#'   beyond which automatic irrigation is suppressed regardless of soil-water
+#'   beyond which automatic irrigation is suppressed regardless of crop water
 #'   status. Useful to implement a cut-off irrigation strategy near harvest.
 #'   Default \code{100} (no cut-off; irrigation runs until the end of the
 #'   cycle).
@@ -776,9 +781,10 @@ cumba_experiment <- function(weather,
 #'
 #' @details
 #' On each simulated day the model: (1) updates the two-layer soil-water
-#' balance; (2) computes the water-stress coefficient (\code{ws}) from the
-#' fraction of transpirable soil water (FTSW); (3) decides whether to
-#' irrigate - irrigation is applied when \code{ws < wsLevel} for the current
+#' balance; (2) computes the water-stress index \code{WSI} from the fraction
+#' of transpirable soil water (FTSW), and its complement \code{ws = 1 - WSI};
+#' (3) decides whether to irrigate - irrigation is applied when
+#' \code{ws < wsLevel} for the current
 #' phase, at least \code{turnMin} days have elapsed since the last event,
 #' \code{cycleCompletion < irrigationStopCycle}, and the crop is in an active
 #' phenological phase (\code{phenoCode > 0}); (4) applies

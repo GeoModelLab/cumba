@@ -5,9 +5,9 @@
 Top-level functions to run the CUMBA daily simulation
 
 - [`cumba_experiment()`](https://GeoModelLab.github.io/cumba/reference/cumba_experiment.md)
-  : CUMBA model — experiment runner
+  : CUMBA model - experiment runner
 - [`cumba_scenario()`](https://GeoModelLab.github.io/cumba/reference/cumba_scenario.md)
-  : CUMBA model — automatic irrigation scenario runner
+  : CUMBA model - automatic irrigation scenario runner
 
 ## Data
 

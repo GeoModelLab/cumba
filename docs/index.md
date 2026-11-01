@@ -20,7 +20,6 @@ The package exposes two top-level entry points:
 ## Installation
 
 ``` r
-
 # install.packages("pak")
 pak::pak("GeoModelLab/cumba")
 ```
@@ -28,7 +27,6 @@ pak::pak("GeoModelLab/cumba")
 ## A first run
 
 ``` r
-
 library(cumba)
 
 data(tomatoFoggia)
@@ -45,6 +43,14 @@ out <- cumba_experiment(
 head(out)
 ```
 
+## Web application
+
+A farmer-facing Shiny application built on `cumba` (field selection,
+Open-Meteo weather, daily irrigation advice, Learning mode and an LLM
+chatbot) is available at <https://geomodelab.shinyapps.io/cumba/>; it
+can also be launched locally from the package source with
+`shiny::runApp("shinyApp/")`.
+
 ## Documentation
 
 - [`vignette("cumba-getting-started")`](https://GeoModelLab.github.io/cumba/articles/cumba-getting-started.md)
@@ -55,3 +61,5 @@ head(out)
   — deficit-irrigation scenarios.
 - [`vignette("estimate_et0_rad")`](https://GeoModelLab.github.io/cumba/articles/estimate_et0_rad.md)
   — ET0 / radiation calibration workflow.
+
+Package website: <https://geomodellab.github.io/cumba/>.

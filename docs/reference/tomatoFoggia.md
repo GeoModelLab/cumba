@@ -16,9 +16,10 @@ A list of four data frames:
 
 - `weather`:
 
-  Daily weather data with columns: DATE (POSIXct), Tx (max temp, °C), Tn
-  (min temp, °C), P (precipitation, mm), Rad (radiation, MJ m-2 d-1),
-  RHx (max RH, Date (Date), Site ("Foggia"), Lat (latitude, numeric).
+  Daily weather data with columns: DATE (POSIXct), Tx (max temp, degC),
+  Tn (min temp, degC), P (precipitation, mm), Rad (radiation, MJ m-2
+  d-1), RHx (max RH, Date (Date), Site ("Foggia"), Lat (latitude,
+  numeric).
 
 - `irrigation`:
 
@@ -34,11 +35,12 @@ A list of four data frames:
 - `production`:
 
   Production and quality data with columns: ID, yield_ref (t ha-1),
-  yield_ref_sd (t ha-1), brix_ref (°Brix), brix_ref_sd (°Brix).
+  yield_ref_sd (t ha-1), brix_ref (degBrix), brix_ref_sd (degBrix).
 
 ## Source
 
-Carucci et al. (2024) <https://doi.org/10.1016/j.dib.2024.110225>
+Carucci et al. (2024)
+[doi:10.1016/j.dib.2024.110225](https://doi.org/10.1016/j.dib.2024.110225)
 
 ## Examples
 
