@@ -1372,6 +1372,45 @@ today_action <- function(cur, om, transplantingDOY, depletionFraction = 30,
   i_today <- which(as.Date(cur$DATE) == today)
   if (!length(i_today)) i_today <- nrow(cur)  # fallback: ultimo giorno
 
+  # ---- Out of season: before transplanting or after the end of the cycle
+  it_os <- lang %in% c("it", "foggiano")
+  cur_yr_os <- as.integer(format(today, "%Y"))
+  trans_os  <- as.Date(sprintf("%d-01-01", cur_yr_os)) + (as.integer(transplantingDOY) - 1L)
+  if (is.finite(as.numeric(trans_os)) && today < trans_os) {
+    n_days <- as.integer(trans_os - today)
+    return(list(
+      action   = "out_of_season",
+      headline = if (it_os) sprintf("Trapianto fra %d giorn%s", n_days, if (n_days == 1L) "o" else "i")
+                 else sprintf("Transplanting in %d day%s", n_days, if (n_days == 1L) "" else "s"),
+      detail   = if (it_os) sprintf("Previsto per il %s. La stagione non e' ancora iniziata: nessun consiglio irriguo.",
+                                    format(trans_os, "%d/%m/%Y"))
+                 else sprintf("Planned for %s. The season has not started yet: no irrigation advice.",
+                              format(trans_os, "%d %B %Y")),
+      color = "#6b7480", icon = "\U0001F331",
+      phase = if (it_os) "Pre-trapianto" else "Pre-transplant", phase_icon = "\U0001F331"))
+  }
+  if ("cycleCompletion" %in% names(cur)) {
+    cc_all   <- suppressWarnings(as.numeric(cur$cycleCompletion))
+    cc_today <- cc_all[i_today]
+    beyond   <- today > max(as.Date(cur$DATE), na.rm = TRUE)
+    if (beyond || (is.finite(cc_today) && cc_today >= 100)) {
+      i_end <- which(is.finite(cc_all) & cc_all >= 100)[1]
+      end_date <- if (!is.na(i_end)) as.Date(cur$DATE[i_end]) else NA
+      return(list(
+        action   = "out_of_season",
+        headline = if (it_os) sprintf("Fuori stagione \u2014 ciclo %d concluso", cur_yr_os)
+                   else sprintf("Out of season \u2014 the %d cycle is complete", cur_yr_os),
+        detail   = if (it_os)
+                     paste0(if (!is.na(end_date)) sprintf("Maturazione raggiunta il %s. ", format(end_date, "%d/%m/%Y")) else "",
+                            "I consigli irrigui riprendono con la prossima stagione: imposta la data di trapianto per pianificarla.")
+                   else
+                     paste0(if (!is.na(end_date)) sprintf("Maturity was reached on %s. ", format(end_date, "%d %B %Y")) else "",
+                            "Irrigation advice resumes with the next season: set its transplanting date to plan it."),
+        color = "#6b7480", icon = "\U0001F3C1",
+        phase = if (it_os) "Fuori stagione" else "Out of season", phase_icon = "\U0001F3C1"))
+    }
+  }
+
   # ---- Stato fenologico OGGI -------------------------------------------
   phase_lbl <- "\u2014"; phase_icon <- "\U0001f33f"
   if ("phenoStage" %in% names(cur)) {

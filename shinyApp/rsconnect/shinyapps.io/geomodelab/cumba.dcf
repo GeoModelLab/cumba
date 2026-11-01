@@ -4,7 +4,7 @@ username: geomodelab
 account: geomodelab
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 
-bundleId: 
+appId: 17231275
+bundleId: 12765141
 url: https://geomodelab.shinyapps.io/cumba/
 version: 1

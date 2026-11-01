@@ -24,9 +24,12 @@ function(input, output, session) {
 
   # ===== Map ==============================================================
   output$growthMap <- renderLeaflet({
+    # OpenStreetMap standard tiles (no API key; attribution required by
+    # the OSM tile policy, hence attributionControl = TRUE). CARTO basemaps
+    # now return "API Key Required".
     leaflet(options = leafletOptions(zoomControl = TRUE,
-                                     attributionControl = FALSE)) |>
-      addProviderTiles("CartoDB.Voyager",   group = "Map") |>
+                                     attributionControl = TRUE)) |>
+      addProviderTiles("OpenStreetMap.Mapnik", group = "Map") |>
       addProviderTiles("Esri.WorldImagery", group = "Satellite") |>
       addLayersControl(baseGroups = c("Map", "Satellite"),
                        options = layersControlOptions(collapsed = TRUE)) |>
