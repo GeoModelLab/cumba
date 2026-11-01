@@ -13,6 +13,10 @@ have addressed all the points raised:
   now take a 'verbose' argument (default FALSE), and every cat() call is issued
   only when verbose = TRUE, so messages can be fully suppressed.
 
+In addition, since the first submission the bundled default parameter set
+(cumbaParameters) has been updated to the calibrated values, and the help
+pages, vignettes and README were revised accordingly.
+
 ## Test environments
 
 * Local: Windows 11 x64, R 4.4.2 (`R CMD check --as-cran`)
@@ -22,8 +26,11 @@ have addressed all the points raised:
 
 0 errors | 0 warnings | 1 note
 
-The remaining NOTE is the standard "New submission". "Brix" and "phenology"
-flagged as possibly misspelled are correct domain terms.
+The only NOTE (win-builder R-devel, 2026-11-01) is from "checking CRAN incoming
+feasibility": "New submission" and possibly misspelled words in DESCRIPTION.
+"Brix" and "phenology" are correct domain terms; "Carucci", "Casadebaig",
+"Yan", "Zhao" and "et al" come from the method references requested in the
+previous review.
 
 ## Downstream dependencies
 

@@ -18,6 +18,7 @@ thresholds.
 Useful links:
 \itemize{
   \item \url{https://github.com/GeoModelLab/cumba}
+  \item \url{https://GeoModelLab.github.io/cumba/}
   \item Report bugs at \url{https://github.com/GeoModelLab/cumba/issues}
 }
 
