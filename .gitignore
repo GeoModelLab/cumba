@@ -20,3 +20,6 @@ cumba_v0.docx
 /Meta/
 
 _pre_cran_backup/
+
+# private data of the analyses (not distributed)
+analysis/private/
